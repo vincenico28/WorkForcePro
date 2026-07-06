@@ -9,9 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { toast } from 'sonner'
 
-export default function LoginPage() {
+export default function SignupPage() {
   const navigate = useNavigate()
-  const { signIn } = useAuthStore()
+  const { signUp } = useAuthStore()
+  
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -19,14 +22,22 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) return
+    if (!email || !password || !firstName || !lastName) {
+      toast.error('All fields are required')
+      return
+    }
+
     setIsLoading(true)
-    const { error } = await signIn(email, password)
+    const { error } = await signUp(email, password, firstName, lastName)
     setIsLoading(false)
+
     if (error) {
-      toast.error('Sign in failed', { description: error })
+      toast.error('Registration failed', { description: error })
     } else {
-      navigate('/app/dashboard')
+      toast.success('Account created successfully!', {
+        description: 'You can now sign in with your credentials.',
+      })
+      navigate('/login')
     }
   }
 
@@ -35,10 +46,12 @@ export default function LoginPage() {
       {/* Left panel */}
       <div className="hidden flex-col justify-between bg-gradient-to-br from-sidebar via-sidebar to-primary/30 p-12 lg:flex lg:w-[45%]">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg overflow-hidden">
-            <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+          <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
+            <Building2 className="size-4 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-sidebar-foreground">WorkForce<span className="text-sidebar-primary">Pro</span></span>
+          <span className="text-lg font-semibold text-sidebar-foreground">
+            WorkForce<span className="text-sidebar-primary">Pro</span>
+          </span>
         </Link>
 
         <div className="space-y-6">
@@ -48,10 +61,10 @@ export default function LoginPage() {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl font-extrabold leading-tight text-sidebar-foreground">
-              The intelligent platform for modern workforce management
+              Empower your career with WorkForce Pro
             </h1>
             <p className="mt-4 text-sidebar-foreground/70">
-              Streamline HR operations, boost productivity, and make data-driven decisions with AI-powered insights.
+              Join your team, manage schedules, request leaves, track your timesheets, and view performance insights in one unified dashboard.
             </p>
           </motion.div>
 
@@ -70,14 +83,17 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-xs text-sidebar-foreground/40">© 2026 WorkForce Pro, Inc.</p>
+        <p className="text-xs text-sidebar-foreground/40">© 2025 WorkForce Pro, Inc.</p>
       </div>
 
       {/* Right panel */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
-        <Link to="/" className="mb-8 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:hidden">
+        <Link
+          to="/login"
+          className="mb-8 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground lg:hidden"
+        >
           <ArrowLeft className="size-3.5" />
-          Back to home
+          Back to login
         </Link>
 
         <motion.div
@@ -88,26 +104,53 @@ export default function LoginPage() {
         >
           <div className="mb-8 text-center lg:hidden">
             <Link to="/" className="flex items-center justify-center gap-2.5">
-              <div className="flex size-9 items-center justify-center rounded-xl overflow-hidden">
-                <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+              <div className="flex size-9 items-center justify-center rounded-xl bg-primary">
+                <Building2 className="size-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold">WorkForce<span className="text-primary">Pro</span></span>
+              <span className="text-xl font-bold">
+                WorkForce<span className="text-primary">Pro</span>
+              </span>
             </Link>
           </div>
 
           <Card className="border-border shadow-xl shadow-black/5">
             <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-              <CardDescription>Sign in to your WorkForce Pro account</CardDescription>
+              <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
+              <CardDescription>Get started as an employee today</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First name</Label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="Jane"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last name</Label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email">Email address</Label>
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@company.com"
+                    placeholder="jane.doe@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
@@ -116,12 +159,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <Link to="/forgot-password" className="text-xs text-primary hover:underline">
-                      Forgot password?
-                    </Link>
-                  </div>
+                  <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -129,7 +167,7 @@ export default function LoginPage() {
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="current-password"
+                      autoComplete="new-password"
                       required
                       className="pr-10"
                     />
@@ -145,11 +183,18 @@ export default function LoginPage() {
 
                 <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                  Sign In
+                  Sign Up
                 </Button>
               </form>
             </CardContent>
-
+            <CardFooter className="flex justify-center border-t border-border py-4">
+              <p className="text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <Link to="/login" className="font-medium text-primary hover:underline">
+                  Sign in
+                </Link>
+              </p>
+            </CardFooter>
           </Card>
         </motion.div>
       </div>

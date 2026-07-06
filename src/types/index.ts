@@ -33,7 +33,7 @@ export interface Employee {
   id: string
   user_id?: string
   org_id: string
-  department_id?: string
+  department_id?: string | null
   employee_id?: string
   first_name: string
   last_name: string

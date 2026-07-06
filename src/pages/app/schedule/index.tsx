@@ -5,6 +5,7 @@ import {
 } from 'date-fns'
 import { ChevronLeft, ChevronRight, Plus, Loader2, X } from 'lucide-react'
 import { useEmployees } from '@/hooks/use-employees'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule } from '@/hooks/use-schedules'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import { toast } from 'sonner'
 import type { Schedule } from '@/types'
 
 export default function SchedulePage() {
+  const { can } = usePermissions()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedEmployee, setSelectedEmployee] = useState('all')
   const [assignOpen, setAssignOpen] = useState(false)
@@ -87,9 +89,11 @@ export default function SchedulePage() {
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
           <p className="text-sm text-muted-foreground">Manage shifts and employee schedules</p>
         </div>
-        <Button className="gap-1.5 shrink-0" onClick={() => setAssignOpen(true)}>
-          <Plus className="size-4" />Assign Shift
-        </Button>
+        {can.manageSchedule() && (
+          <Button className="gap-1.5 shrink-0" onClick={() => setAssignOpen(true)}>
+            <Plus className="size-4" />Assign Shift
+          </Button>
+        )}
       </div>
 
       {/* Shift legend */}
@@ -124,17 +128,19 @@ export default function SchedulePage() {
               Today
             </Button>
           </div>
-          <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="All employees" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Employees</SelectItem>
-              {employees?.map(e => (
-                <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {can.isSupervisor() && (
+            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="All employees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Employees</SelectItem>
+                {employees?.map(e => (
+                  <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {isLoading ? (
@@ -190,24 +196,33 @@ export default function SchedulePage() {
                               title={`${shift.name}: ${shift.start_time} – ${shift.end_time}`}
                             >
                               {shift.name[0]}
-                              <button
-                                onClick={() => handleRemoveSchedule(sched.id)}
-                                className="absolute -right-1 -top-1 hidden size-3 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover/cell:flex"
-                              >
-                                <X className="size-2" />
-                              </button>
+                              {can.manageSchedule() && (
+                                <button
+                                  onClick={() => handleRemoveSchedule(sched.id)}
+                                  className="absolute -right-1 -top-1 hidden size-3 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover/cell:flex"
+                                >
+                                  <X className="size-2" />
+                                </button>
+                              )}
                             </div>
-                          ) : !isWeekend(day) && (
-                            <button
-                              onClick={() => {
-                                setAssignForm({ employee_id: emp.id, shift_id: shifts?.[0]?.id ?? '', date: dateStr })
-                                setAssignOpen(true)
-                              }}
-                              className="mx-auto flex size-6 items-center justify-center rounded opacity-0 hover:opacity-100 hover:bg-muted transition-opacity text-muted-foreground"
-                              title="Add shift"
-                            >
-                              <Plus className="size-3" />
-                            </button>
+                          ) : (
+                            <div className="group/cell relative size-full">
+                              {can.manageSchedule() && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 opacity-0 group-hover/cell:opacity-100">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-6 bg-background shadow-sm hover:bg-muted"
+                                    onClick={() => {
+                                      setAssignForm(f => ({ ...f, employee_id: emp.id, date: dateStr }))
+                                      setAssignOpen(true)
+                                    }}
+                                  >
+                                    <Plus className="size-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </td>
                       )

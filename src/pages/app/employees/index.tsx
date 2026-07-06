@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useEmployees, useUpdateEmployee } from '@/hooks/use-employees'
 import { useDepartments } from '@/hooks/use-misc'
+import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -90,7 +91,7 @@ function EmployeeFormFields({
       </div>
       <div className="space-y-1.5">
         <Label>Email *</Label>
-        <Input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="sarah@company.com" required />
+        <Input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="sarah@company.com" required disabled={!showPassword} title={!showPassword ? "Email cannot be changed after creation" : ""} />
       </div>
       {showPassword && (
         <div className="space-y-1.5">
@@ -154,6 +155,7 @@ export default function EmployeesPage() {
   const { data: employees, isLoading, refetch } = useEmployees()
   const { data: departments } = useDepartments()
   const { mutateAsync: updateEmployee, isPending: isUpdating } = useUpdateEmployee()
+  const { can } = usePermissions()
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -200,13 +202,8 @@ export default function EmployeesPage() {
         toast.error('Not authenticated')
         return
       }
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-employee`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
+      const { data: result, error: invokeError } = await supabase.functions.invoke('create-employee', {
+        body: {
           email: form.email,
           password: form.password,
           first_name: form.first_name,
@@ -216,11 +213,14 @@ export default function EmployeesPage() {
           department_id: form.department_id || null,
           role: form.role,
           employment_type: form.employment_type,
-        }),
+        }
       })
-      const result = await res.json()
-      if (!res.ok) {
-        throw new Error(result.error || 'Failed to create employee')
+
+      if (invokeError) {
+        throw new Error(invokeError.message || 'Failed to create employee')
+      }
+      if (result?.error) {
+        throw new Error(result.error)
       }
       toast.success('Employee account created successfully')
       setAddOpen(false)
@@ -237,9 +237,11 @@ export default function EmployeesPage() {
     e.preventDefault()
     if (!editEmp) return
     try {
+      const { password, department_id, ...updatesToApply } = form
       await updateEmployee({
         id: editEmp.id,
-        ...form,
+        ...updatesToApply,
+        department_id: department_id || null,
         role: form.role as import('@/types').EmployeeRole,
         employment_type: form.employment_type as import('@/types').EmploymentType,
       })
@@ -296,10 +298,12 @@ export default function EmployeesPage() {
             Manage and view all {summary.total} employees in your organization
           </p>
         </div>
-        <Button className="gap-1.5" onClick={openAdd}>
-          <UserPlus className="size-4" />
-          Add Employee
-        </Button>
+        {can.manageEmployees() && (
+          <Button className="gap-1.5" onClick={openAdd}>
+            <UserPlus className="size-4" />
+            Add Employee
+          </Button>
+        )}
       </div>
 
       {/* Summary cards */}
@@ -421,19 +425,23 @@ export default function EmployeesPage() {
                         <DropdownMenuItem asChild>
                           <Link to={`/app/employees/${emp.id}`}>View Profile</Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openEdit(emp)}>Edit</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        {emp.status === 'inactive' ? (
-                          <DropdownMenuItem onClick={() => handleReactivate(emp)}>
-                            Reactivate
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => setDeactivateEmp(emp)}
-                          >
-                            Deactivate
-                          </DropdownMenuItem>
+                        {can.manageEmployees() && (
+                          <>
+                            <DropdownMenuItem onClick={() => openEdit(emp)}>Edit</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {emp.status === 'inactive' ? (
+                              <DropdownMenuItem onClick={() => handleReactivate(emp)}>
+                                Reactivate
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => setDeactivateEmp(emp)}
+                              >
+                                Deactivate
+                              </DropdownMenuItem>
+                            )}
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

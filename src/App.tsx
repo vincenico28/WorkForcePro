@@ -19,6 +19,7 @@ import PayrollPage from '@/pages/app/payroll'
 import PerformancePage from '@/pages/app/performance'
 import TimesheetPage from '@/pages/app/timesheet'
 import SettingsPage from '@/pages/app/settings'
+import SystemUsersPage from '@/pages/app/users'
 import { Spinner } from '@/components/ui/spinner'
 import { PermissionGuard } from '@/components/auth/PermissionGuard'
 
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="payroll" element={<PermissionGuard permission="payroll:view"><PayrollPage /></PermissionGuard>} />
         <Route path="performance" element={<PermissionGuard permission="performance:view"><PerformancePage /></PermissionGuard>} />
         <Route path="settings" element={<PermissionGuard permission="settings:view"><SettingsPage /></PermissionGuard>} />
+        <Route path="users" element={<PermissionGuard permission="settings:view"><SystemUsersPage /></PermissionGuard>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

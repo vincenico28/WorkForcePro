@@ -19,7 +19,10 @@ export function useShifts() {
   })
 }
 
+import { useAuthStore } from '@/stores/auth.store'
+
 export function useSchedules(startDate: string, endDate: string, employeeId?: string) {
+  const { employee } = useAuthStore()
   return useQuery({
     queryKey: ['schedules', startDate, endDate, employeeId],
     queryFn: async () => {
@@ -30,6 +33,9 @@ export function useSchedules(startDate: string, endDate: string, employeeId?: st
         .lte('date', endDate)
         .order('date')
       if (employeeId) q = q.eq('employee_id', employeeId)
+      else if (employee?.role === 'employee') {
+        q = q.eq('employee_id', employee.id)
+      }
       const { data, error } = await q
       if (error) throw error
       return data as Schedule[]

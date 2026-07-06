@@ -2,15 +2,21 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { PerformanceReview } from '@/types'
 
+import { useAuthStore } from '@/stores/auth.store'
+
 export function usePerformanceReviews(employeeId?: string) {
+  const { employee } = useAuthStore()
   return useQuery({
-    queryKey: ['performance-reviews', employeeId],
+    queryKey: ['performance-reviews', employeeId, employee?.id],
     queryFn: async () => {
       let q = supabase
         .from('performance_reviews')
         .select('*, employees!performance_reviews_employee_id_fkey(id, first_name, last_name, avatar_url, position, departments(name)), reviewer:employees!performance_reviews_reviewer_id_fkey(id, first_name, last_name)')
         .order('created_at', { ascending: false })
       if (employeeId) q = q.eq('employee_id', employeeId)
+      else if (employee?.role === 'employee') {
+        q = q.eq('employee_id', employee.id)
+      }
       const { data, error } = await q
       if (error) throw error
       return data as PerformanceReview[]

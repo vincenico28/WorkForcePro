@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Clock, Calendar, BarChart3, Building2,
   Settings, LogOut, Bell, Megaphone, ChevronDown, Briefcase,
-  DollarSign, Star, Timer,
+  DollarSign, Star, Timer, ShieldAlert,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLeaveRequests } from '@/hooks/use-leaves'
@@ -53,6 +53,7 @@ const NAV_REPORTS: NavItem[] = [
 
 const NAV_SYSTEM: NavItem[] = [
   { title: 'Settings', url: '/app/settings', icon: Settings, permission: 'settings:view' },
+  { title: 'System Users', url: '/app/users', icon: ShieldAlert, permission: 'settings:view' },
 ]
 
 function getInitials(firstName?: string, lastName?: string) {
@@ -102,8 +103,8 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-sidebar-accent">
               <Link to="/app/dashboard">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
-                  <Building2 className="size-4 text-sidebar-primary-foreground" />
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg overflow-hidden">
+                  <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
                 </div>
                 <div className="flex flex-col">
                   <span className="truncate text-sm font-semibold text-sidebar-foreground">WorkForce Pro</span>

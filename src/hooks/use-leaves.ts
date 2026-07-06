@@ -2,15 +2,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, ORG_ID } from '@/lib/supabase'
 import type { LeaveRequest, LeaveType, LeaveBalance } from '@/types'
 
+import { useAuthStore } from '@/stores/auth.store'
+
 export function useLeaveRequests(status?: string) {
+  const { employee } = useAuthStore()
   return useQuery({
-    queryKey: ['leaves', status],
+    queryKey: ['leaves', status, employee?.id],
     queryFn: async () => {
       let q = supabase
         .from('leave_requests')
         .select('*, employees!leave_requests_employee_id_fkey(id, first_name, last_name, avatar_url, position, departments(name)), leave_types(*)')
         .order('created_at', { ascending: false })
       if (status && status !== 'all') q = q.eq('status', status)
+      
+      if (employee?.role === 'employee') {
+        q = q.eq('employee_id', employee.id)
+      }
+
       const { data, error } = await q
       if (error) throw error
       return data as LeaveRequest[]

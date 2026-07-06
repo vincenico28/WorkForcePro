@@ -4,6 +4,7 @@ import { format, subDays } from 'date-fns'
 import { Clock, CheckCircle, XCircle, AlertCircle, TimerReset, MapPin, Download } from 'lucide-react'
 import { useAttendance, useAttendanceRange, useClockIn, useClockOut, useTodayAttendance } from '@/hooks/use-attendance'
 import { useAuthStore } from '@/stores/auth.store'
+import { usePermissions } from '@/hooks/use-permissions'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -119,6 +120,7 @@ function ClockWidget() {
 }
 
 export default function AttendancePage() {
+  const { can } = usePermissions()
   const [selectedDate] = useState(new Date())
   const { data: todayAttendance, isLoading } = useAttendance(selectedDate)
 
@@ -140,10 +142,12 @@ export default function AttendancePage() {
           <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
           <p className="text-sm text-muted-foreground">Track and manage employee attendance</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Download className="size-4" />
-          Export Report
-        </Button>
+        {can.manageAttendance() && (
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <Download className="size-4" />
+            Export Report
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

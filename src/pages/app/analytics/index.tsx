@@ -50,8 +50,8 @@ function MetricCard({
 }
 
 export default function AnalyticsPage() {
-  const { data: employees, isLoading: empLoading } = useEmployees()
-  const { data: departments } = useDepartments()
+  const { data: employees, isLoading: empLoading, error: empErr } = useEmployees()
+  const { data: departments, error: deptErr } = useDepartments()
 
   const today = new Date()
   const endDate = format(today, 'yyyy-MM-dd')
@@ -59,9 +59,13 @@ export default function AnalyticsPage() {
   const prevStartDate = format(subDays(today, 59), 'yyyy-MM-dd')
   const prevEndDate = format(subDays(today, 30), 'yyyy-MM-dd')
 
-  const { data: attendanceData, isLoading: attLoading } = useAttendanceRange(startDate30, endDate)
+  const { data: attendanceData, isLoading: attLoading, error: attErr } = useAttendanceRange(startDate30, endDate)
   const { data: prevAttendance } = useAttendanceRange(prevStartDate, prevEndDate)
-  const { data: leaves } = useLeaveRequests()
+  
+  const startDate6Months = format(startOfMonth(subMonths(today, 5)), 'yyyy-MM-dd')
+  const { data: sixMonthAttendance, error: sixMonthErr } = useAttendanceRange(startDate6Months, endDate)
+
+  const { data: leaves, error: leaveErr } = useLeaveRequests()
 
   const isLoading = empLoading || attLoading
 
@@ -134,12 +138,12 @@ export default function AnalyticsPage() {
       const d = subMonths(today, i)
       const start = format(startOfMonth(d), 'yyyy-MM-dd')
       const end = format(endOfMonth(d), 'yyyy-MM-dd')
-      const monthAtt = attendanceData?.filter(a => a.date >= start && a.date <= end) ?? []
+      const monthAtt = sixMonthAttendance?.filter(a => a.date >= start && a.date <= end) ?? []
       const hours = monthAtt.reduce((s, a) => s + (a.overtime_hours ?? 0), 0)
       months.push({ month: format(d, 'MMM'), hours: Math.round(hours) })
     }
     return months
-  }, [attendanceData])
+  }, [sixMonthAttendance])
 
   // Computed metrics
   const metrics = useMemo(() => {
@@ -193,7 +197,7 @@ export default function AnalyticsPage() {
         </Button>
       </div>
 
-      {/* Key metrics */}
+      {/* Overview Metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Total Workforce" value={String(metrics.totalEmp)} change="+0%"

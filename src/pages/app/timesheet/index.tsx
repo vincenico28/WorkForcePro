@@ -65,8 +65,9 @@ function EditTimeEntryDialog({
     const [eh, em] = form.end_time.split(':').map(Number)
     const startMins = sh * 60 + sm
     const endMins = eh * 60 + em
-    if (endMins <= startMins) return 0
-    const total = (endMins - startMins - form.break_minutes) / 60
+    let totalMins = endMins - startMins
+    if (totalMins < 0) totalMins += 24 * 60 // wrap around midnight
+    const total = (totalMins - form.break_minutes) / 60
     return Math.max(0, total)
   }
 
@@ -75,7 +76,7 @@ function EditTimeEntryDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (hours <= 0) { toast.error('End time must be after start time'); return }
+    if (hours <= 0 && form.start_time === form.end_time) { toast.error('Start time and end time cannot be the same'); return }
     try {
       await mutateAsync({
         id: entry.id,
@@ -175,8 +176,9 @@ function AddTimeEntryDialog({
     const [eh, em] = form.end_time.split(':').map(Number)
     const startMins = sh * 60 + sm
     const endMins = eh * 60 + em
-    if (endMins <= startMins) return 0
-    const total = (endMins - startMins - form.break_minutes) / 60
+    let totalMins = endMins - startMins
+    if (totalMins < 0) totalMins += 24 * 60 // wrap around midnight
+    const total = (totalMins - form.break_minutes) / 60
     return Math.max(0, total)
   }
 
@@ -185,6 +187,7 @@ function AddTimeEntryDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (hours <= 0 && form.start_time === form.end_time) { toast.error('Start time and end time cannot be the same'); return }
     try {
       await mutateAsync({
         employee_id: employeeId,
@@ -622,12 +625,16 @@ export default function TimesheetPage() {
                             <CheckCircle className="size-4 text-emerald-600" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditingEntry(entry)}>
-                          <Edit2 className="size-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="size-7" onClick={() => handleDelete(entry.id)}>
-                          <Trash2 className="size-3.5 text-destructive" />
-                        </Button>
+                        {(!entry.is_approved || can.editTimesheet()) && (
+                          <Button variant="ghost" size="icon" className="size-7" onClick={() => setEditingEntry(entry)}>
+                            <Edit2 className="size-3.5" />
+                          </Button>
+                        )}
+                        {(!entry.is_approved || can.editTimesheet()) && (
+                          <Button variant="ghost" size="icon" className="size-7" onClick={() => handleDelete(entry.id)}>
+                            <Trash2 className="size-3.5 text-destructive" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

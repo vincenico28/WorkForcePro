@@ -24,6 +24,7 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { usePerformanceReviews, useCreatePerformanceReview } from '@/hooks/use-performance'
 import { useEmployees } from '@/hooks/use-employees'
 import { useAuthStore } from '@/stores/auth.store'
+import { usePermissions } from '@/hooks/use-permissions'
 import { toast } from 'sonner'
 import type { PerformanceReview } from '@/types'
 
@@ -73,6 +74,7 @@ export default function PerformancePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [newReviewOpen, setNewReviewOpen] = useState(false)
   const { employee } = useAuthStore()
+  const { can } = usePermissions()
   const { data: reviews, isLoading } = usePerformanceReviews()
   const { data: employees } = useEmployees()
   const createReview = useCreatePerformanceReview()
@@ -157,9 +159,11 @@ export default function PerformancePage() {
           <h1 className="text-2xl font-bold tracking-tight">Performance</h1>
           <p className="text-sm text-muted-foreground">Track employee performance, goals, and reviews</p>
         </div>
-        <Button className="gap-1.5 shrink-0" onClick={() => setNewReviewOpen(true)}>
-          <Plus className="size-4" />New Review
-        </Button>
+        {can.managePerformance() && (
+          <Button className="gap-1.5 shrink-0" onClick={() => setNewReviewOpen(true)}>
+            <Plus className="size-4" />New Review
+          </Button>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -227,9 +231,11 @@ export default function PerformancePage() {
                 </div>
                 <h3 className="font-semibold">No reviews yet</h3>
                 <p className="mt-1 text-sm text-muted-foreground">Create the first performance review to get started</p>
-                <Button className="mt-4 gap-1.5" onClick={() => setNewReviewOpen(true)}>
-                  <Plus className="size-4" />New Review
-                </Button>
+                {can.managePerformance() && (
+                  <Button className="mt-4 gap-1.5" onClick={() => setNewReviewOpen(true)}>
+                    <Plus className="size-4" />New Review
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (

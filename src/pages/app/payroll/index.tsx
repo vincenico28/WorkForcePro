@@ -20,6 +20,7 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { useEmployees } from '@/hooks/use-employees'
 import { useTimesheetEntries } from '@/hooks/use-timesheets'
 import { useAttendanceRange } from '@/hooks/use-attendance'
+import { usePermissions } from '@/hooks/use-permissions'
 import { toast } from 'sonner'
 
 const chartConfig = {
@@ -39,6 +40,7 @@ function estimateGross(totalHours: number, overtimeHours: number, baseHourly = 4
 const DEDUCTION_RATE = 0.24 // flat 24% for simplicity
 
 export default function PayrollPage() {
+  const { can } = usePermissions()
   const [activeTab, setActiveTab] = useState('overview')
   const [isProcessing, setIsProcessing] = useState(false)
 
@@ -113,10 +115,12 @@ export default function PayrollPage() {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info('Export coming soon')}>
             <Download className="size-4" />Export
           </Button>
-          <Button className="gap-1.5" onClick={handleRunPayroll} disabled={isProcessing}>
-            {isProcessing ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
-            Run Payroll
-          </Button>
+          {can.managePayroll() && (
+            <Button className="gap-1.5" onClick={handleRunPayroll} disabled={isProcessing}>
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle className="size-4" />}
+              Run Payroll
+            </Button>
+          )}
         </div>
       </div>
 

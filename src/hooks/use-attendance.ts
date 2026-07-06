@@ -3,16 +3,25 @@ import { supabase } from '@/lib/supabase'
 import type { AttendanceRecord } from '@/types'
 import { format } from 'date-fns'
 
+import { useAuthStore } from '@/stores/auth.store'
+
 export function useAttendance(date?: Date) {
+  const { employee } = useAuthStore()
   const dateStr = date ? format(date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   return useQuery({
     queryKey: ['attendance', dateStr],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('attendance_records')
-        .select('*, employees(id, first_name, last_name, avatar_url, position, departments(name))')
+        .select('*, employees:employees!attendance_records_employee_id_fkey(id, first_name, last_name, avatar_url, position, departments(name))')
         .eq('date', dateStr)
         .order('clock_in', { ascending: false })
+      
+      if (employee?.role === 'employee') {
+        query = query.eq('employee_id', employee.id)
+      }
+
+      const { data, error } = await query
       if (error) throw error
       return data as AttendanceRecord[]
     },
@@ -20,15 +29,22 @@ export function useAttendance(date?: Date) {
 }
 
 export function useAttendanceRange(startDate: string, endDate: string) {
+  const { employee } = useAuthStore()
   return useQuery({
-    queryKey: ['attendance', 'range', startDate, endDate],
+    queryKey: ['attendance', 'range', startDate, endDate, employee?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('attendance_records')
-        .select('*, employees(id, first_name, last_name, avatar_url, departments(name))')
+        .select('*, employees:employees!attendance_records_employee_id_fkey(id, first_name, last_name, avatar_url, departments(name))')
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date', { ascending: false })
+
+      if (employee?.role === 'employee') {
+        query = query.eq('employee_id', employee.id)
+      }
+
+      const { data, error } = await query
       if (error) throw error
       return data as AttendanceRecord[]
     },

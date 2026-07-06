@@ -67,9 +67,11 @@ export default function EmployeeDetailPage() {
     e.preventDefault()
     if (!employee) return
     try {
+      const { department_id, ...updatesToApply } = editForm
       await updateEmployee({
         id: employee.id,
-        ...editForm,
+        ...updatesToApply,
+        department_id: department_id || null,
         role: editForm.role as import('@/types').EmployeeRole,
         employment_type: editForm.employment_type as import('@/types').EmploymentType,
       })

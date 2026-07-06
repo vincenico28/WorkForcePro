@@ -3,7 +3,10 @@ import { supabase } from '@/lib/supabase'
 import { format, startOfWeek, endOfWeek } from 'date-fns'
 import type { TimesheetEntry, TimesheetPeriod } from '@/types'
 
+import { useAuthStore } from '@/stores/auth.store'
+
 export function useTimesheetEntries(employeeId: string | undefined, startDate: string, endDate: string) {
+  const { employee } = useAuthStore()
   return useQuery({
     queryKey: ['timesheet-entries', employeeId, startDate, endDate],
     queryFn: async () => {
@@ -16,6 +19,8 @@ export function useTimesheetEntries(employeeId: string | undefined, startDate: s
 
       if (employeeId) {
         q = q.eq('employee_id', employeeId)
+      } else if (employee?.role === 'employee') {
+        q = q.eq('employee_id', employee.id)
       }
 
       const { data, error } = await q

@@ -63,18 +63,23 @@ export const useAuthStore = create<AuthState>()(
             .maybeSingle()
 
           if (!emp) {
-            const { data: newEmp } = await supabase
+            const firstName = data.user.user_metadata?.first_name || data.user.email?.split('@')[0] || 'User'
+            const lastName = data.user.user_metadata?.last_name || ''
+            
+            const { data: newEmp, error: insertError } = await supabase
               .from('employees')
               .insert({
                 user_id: data.user.id,
                 org_id: ORG_ID,
-                first_name: data.user.email?.split('@')[0] ?? 'User',
-                last_name: '',
+                first_name: firstName,
+                last_name: lastName,
                 email: data.user.email!,
                 role: 'employee',
               })
               .select('*, departments(*)')
               .single()
+
+            if (insertError) return { error: insertError.message }
             emp = newEmp
           }
 
@@ -88,11 +93,25 @@ export const useAuthStore = create<AuthState>()(
       },
 
       signUp: async (email, password, firstName, lastName) => {
-        const { data, error } = await supabase.auth.signUp({ email, password })
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+            }
+          }
+        })
         if (error) return { error: error.message }
 
         if (data.user) {
-          const { data: emp } = await supabase
+          // If email confirmation is required, session will be null
+          if (!data.session) {
+            return {} // Return success but don't log in
+          }
+
+          const { data: emp, error: insertError } = await supabase
             .from('employees')
             .insert({
               user_id: data.user.id,
@@ -105,6 +124,8 @@ export const useAuthStore = create<AuthState>()(
             })
             .select('*, departments(*)')
             .single()
+
+          if (insertError) return { error: insertError.message }
 
           set({
             user: { id: data.user.id, email: data.user.email!, employee: emp ?? undefined },

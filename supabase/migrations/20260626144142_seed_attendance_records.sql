@@ -29,7 +29,7 @@ BEGIN
     FOR work_date IN 
       SELECT d::date
       FROM generate_series(
-        (CURRENT_DATE - INTERVAL '21 days')::date,
+        (CURRENT_DATE - INTERVAL '180 days')::date,
         (CURRENT_DATE - INTERVAL '1 day')::date,
         '1 day'::interval
       ) AS d

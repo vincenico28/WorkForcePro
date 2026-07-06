@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus } from '@/hooks/use-leaves'
 import { useEmployees } from '@/hooks/use-employees'
+import { usePermissions } from '@/hooks/use-permissions'
 import { useAuthStore } from '@/stores/auth.store'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,7 @@ function RequestLeaveDialog() {
   const { data: leaveTypes } = useLeaveTypes()
   const { mutateAsync, isPending } = useCreateLeaveRequest()
   const { data: employees } = useEmployees()
+  const { can } = usePermissions()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
     employee_id: employee?.id ?? '',
@@ -82,19 +84,21 @@ function RequestLeaveDialog() {
           <DialogTitle>New Leave Request</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="mt-2 space-y-4">
-          <div className="space-y-1.5">
-            <Label>Employee *</Label>
-            <Select value={form.employee_id} onValueChange={v => update('employee_id', v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees?.map(e => (
-                  <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {can.manageLeaves() && (
+            <div className="space-y-1.5">
+              <Label>Employee *</Label>
+              <Select value={form.employee_id} onValueChange={v => update('employee_id', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees?.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label>Leave Type *</Label>
             <Select value={form.leave_type_id} onValueChange={v => update('leave_type_id', v)} required>
@@ -163,6 +167,7 @@ function RequestLeaveDialog() {
 }
 
 function LeaveCard({ leave, onAction }: { leave: LeaveRequest; onAction?: (id: string, status: string) => void }) {
+  const { can } = usePermissions()
   const cfg = STATUS_CONFIG[leave.status]
   const Icon = cfg?.icon ?? Clock
 
@@ -210,7 +215,7 @@ function LeaveCard({ leave, onAction }: { leave: LeaveRequest; onAction?: (id: s
           <p className="mt-3 text-xs text-muted-foreground line-clamp-2">"{leave.reason}"</p>
         )}
 
-        {leave.status === 'pending' && onAction && (
+        {leave.status === 'pending' && onAction && can.approveLeaves() && (
           <div className="mt-4 flex gap-2">
             <Button
               size="sm"

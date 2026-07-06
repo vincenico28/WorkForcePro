@@ -15,7 +15,6 @@ import { ModeToggle } from '@/components/mode-toggle'
 
 const NAV_LINKS = [
   { label: 'Features', href: '#features' },
-  { label: 'Pricing', href: '#pricing' },
   { label: 'Testimonials', href: '#testimonials' },
   { label: 'FAQ', href: '#faq' },
 ]
@@ -81,58 +80,6 @@ const FEATURES = [
     title: 'Payroll Integration',
     desc: 'Seamless sync with major payroll providers. Automated timesheet exports, tax calculations, and compliance.',
     color: 'text-fuchsia-600 bg-fuchsia-50 dark:bg-fuchsia-950/40',
-  },
-]
-
-const PLANS = [
-  {
-    name: 'Starter',
-    price: '29',
-    desc: 'Perfect for small teams getting started',
-    features: [
-      'Up to 25 employees',
-      'Attendance & scheduling',
-      'Basic leave management',
-      'Email notifications',
-      '5 GB storage',
-      'Community support',
-    ],
-    cta: 'Start Free Trial',
-    popular: false,
-  },
-  {
-    name: 'Professional',
-    price: '79',
-    desc: 'For growing teams that need more',
-    features: [
-      'Up to 150 employees',
-      'Full HR suite',
-      'Advanced analytics',
-      'Payroll integration',
-      'AI assistant (50 queries/mo)',
-      '50 GB storage',
-      'Priority email support',
-      'Custom workflows',
-    ],
-    cta: 'Start Free Trial',
-    popular: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    desc: 'For large organizations at scale',
-    features: [
-      'Unlimited employees',
-      'All Professional features',
-      'Unlimited AI queries',
-      'SSO / SAML 2.0',
-      'Custom integrations',
-      'Dedicated CSM',
-      'SLA guarantee',
-      'On-premise option',
-    ],
-    cta: 'Contact Sales',
-    popular: false,
   },
 ]
 
@@ -206,8 +153,8 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
-              <Building2 className="size-4 text-primary-foreground" />
+            <div className="flex size-8 items-center justify-center rounded-lg overflow-hidden">
+              <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
             </div>
             <span className="text-lg font-semibold tracking-tight">WorkForce<span className="text-primary">Pro</span></span>
           </Link>
@@ -225,12 +172,6 @@ export default function LandingPage() {
             <Link to="/login" className="hidden text-sm font-medium text-muted-foreground hover:text-foreground md:block">
               Sign In
             </Link>
-            <Link to="/register">
-              <Button size="sm" className="hidden md:flex">
-                Get Started Free
-                <ArrowRight className="ml-1.5 size-3.5" />
-              </Button>
-            </Link>
             <button className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
@@ -247,7 +188,6 @@ export default function LandingPage() {
               ))}
               <Separator />
               <Link to="/login" className="text-sm font-medium">Sign In</Link>
-              <Link to="/register"><Button className="w-full">Get Started Free</Button></Link>
             </nav>
           </div>
         )}
@@ -289,23 +229,13 @@ export default function LandingPage() {
             initial="hidden" animate="visible" custom={3} variants={fadeUp}
             className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
           >
-            <Link to="/register">
-              <Button size="lg" className="gap-2 px-8 text-base shadow-lg shadow-primary/25">
-                Start Free 14-Day Trial
-                <ArrowRight className="size-4" />
-              </Button>
-            </Link>
             <Link to="/login">
-              <Button variant="outline" size="lg" className="gap-2 px-8 text-base">
+              <Button size="lg" className="gap-2 px-8 text-base">
                 Sign In
                 <ChevronRight className="size-4" />
               </Button>
             </Link>
           </motion.div>
-
-          <motion.p initial="hidden" animate="visible" custom={4} variants={fadeUp} className="mt-4 text-xs text-muted-foreground">
-            No credit card required · 14-day free trial · Cancel anytime
-          </motion.p>
 
           {/* HERO DASHBOARD MOCKUP */}
           <motion.div
@@ -411,64 +341,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING */}
-      <section id="pricing" className="py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto mb-16 max-w-2xl text-center">
-            <Badge variant="secondary" className="mb-4">Pricing</Badge>
-            <h2 className="text-4xl font-bold tracking-tight">Simple, transparent pricing</h2>
-            <p className="mt-4 text-muted-foreground">Start free. Scale as you grow. All plans include a 14-day trial.</p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-3">
-            {PLANS.map((plan, i) => (
-              <motion.div
-                key={plan.name}
-                initial="hidden" whileInView="visible" viewport={{ once: true }} custom={i * 0.2} variants={fadeUp}
-                className={`relative rounded-2xl border p-8 ${plan.popular ? 'border-primary bg-primary/5 shadow-xl shadow-primary/10' : 'border-border bg-card'}`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                    <Badge className="px-4">Most Popular</Badge>
-                  </div>
-                )}
-                <div className="mb-6">
-                  <h3 className="text-lg font-semibold">{plan.name}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{plan.desc}</p>
-                  <div className="mt-4 flex items-end gap-1">
-                    {plan.price === 'Custom' ? (
-                      <span className="text-4xl font-extrabold">Custom</span>
-                    ) : (
-                      <>
-                        <span className="text-sm text-muted-foreground">$</span>
-                        <span className="text-4xl font-extrabold">{plan.price}</span>
-                        <span className="mb-1 text-sm text-muted-foreground">/mo</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <ul className="mb-8 space-y-3">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2.5 text-sm">
-                      <Check className="size-4 shrink-0 text-primary" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link to="/register">
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? 'default' : 'outline'}
-                    size="lg"
-                  >
-                    {plan.cta}
-                  </Button>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* TESTIMONIALS */}
       <section id="testimonials" className="bg-muted/20 py-24">
         <div className="mx-auto max-w-6xl px-6">
@@ -547,20 +419,13 @@ export default function LandingPage() {
                 Join 1,200+ companies using WorkForce Pro to manage their most important asset — their people.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Link to="/register">
-                  <Button size="lg" variant="secondary" className="gap-2 bg-white px-8 text-primary hover:bg-white/90">
-                    Start Free Trial
-                    <ArrowRight className="size-4" />
-                  </Button>
-                </Link>
                 <Link to="/login">
-                  <Button size="lg" variant="ghost" className="gap-2 px-8 text-white hover:bg-white/10">
+                  <Button size="lg" variant="secondary" className="gap-2 bg-white px-8 text-primary hover:bg-white/90">
                     Sign In
                     <Globe className="size-4" />
                   </Button>
                 </Link>
               </div>
-              <p className="mt-4 text-sm opacity-60">No credit card required · Setup in minutes</p>
             </div>
           </motion.div>
         </div>
@@ -572,8 +437,8 @@ export default function LandingPage() {
           <div className="grid gap-12 md:grid-cols-5">
             <div className="md:col-span-2">
               <Link to="/" className="flex items-center gap-2.5">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
-                  <Building2 className="size-4 text-primary-foreground" />
+                <div className="flex size-8 items-center justify-center rounded-lg overflow-hidden">
+                  <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
                 </div>
                 <span className="text-lg font-semibold">WorkForce<span className="text-primary">Pro</span></span>
               </Link>
@@ -588,7 +453,7 @@ export default function LandingPage() {
             {[
               {
                 title: 'Product',
-                links: ['Features', 'Pricing', 'Changelog', 'Roadmap', 'API Docs'],
+                links: ['Features', 'Changelog', 'Roadmap', 'API Docs'],
               },
               {
                 title: 'Company',

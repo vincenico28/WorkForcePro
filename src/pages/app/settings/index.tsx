@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Building2, Bell, Shield, Palette, Globe, Key, Save, User, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
+import { usePermissions } from '@/hooks/use-permissions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +17,7 @@ import { toast } from 'sonner'
 
 export default function SettingsPage() {
   const { employee, updateProfile, updatePassword } = useAuthStore()
+  const { can } = usePermissions()
 
   const [profile, setProfile] = useState({
     first_name: '',
@@ -358,7 +360,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Work Week</Label>
-                  <Select defaultValue="mon-fri">
+                  <Select defaultValue="mon-fri" disabled={!can.manageSettings()}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="mon-fri">Monday – Friday</SelectItem>
@@ -369,7 +371,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Default Timezone</Label>
-                  <Select defaultValue="UTC">
+                  <Select defaultValue="UTC" disabled={!can.manageSettings()}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
