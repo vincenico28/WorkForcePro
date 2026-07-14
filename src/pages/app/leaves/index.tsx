@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import {
   Calendar, CheckCircle, XCircle, Clock, Plus, Filter, Download,
-  ChevronRight, Loader2,
+  ChevronRight, Loader2, Search
 } from 'lucide-react'
 import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus } from '@/hooks/use-leaves'
 import { useEmployees } from '@/hooks/use-employees'
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -49,7 +50,15 @@ function RequestLeaveDialog() {
     reason: '',
   })
 
-  const update = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
+  const update = (k: string, v: string) => {
+    setForm(p => {
+      const next = { ...p, [k]: v }
+      if (k === 'start_date' && (!p.end_date || new Date(v) > new Date(p.end_date))) {
+        next.end_date = v
+      }
+      return next
+    })
+  }
 
   const calcDays = () => {
     if (!form.start_date || !form.end_date) return 0
@@ -58,10 +67,21 @@ function RequestLeaveDialog() {
     return Math.max(0, diff)
   }
 
+  const { data: balances } = useLeaveBalances(form.employee_id)
+  const selectedType = leaveTypes?.find(lt => lt.id === form.leave_type_id)
+  const isSickLeave = selectedType?.name.toLowerCase().includes('sick')
+  const bal = balances?.find(b => b.leave_type_id === form.leave_type_id)
+  const allocated = bal?.allocated_days ?? selectedType?.days_allowed ?? 0
+  const used = bal?.used_days ?? 0
+  const remaining = Math.max(0, allocated - used)
+  const requestedDays = calcDays()
+  const projectedRemaining = Math.max(0, remaining - requestedDays)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const days = calcDays()
     if (days <= 0) { toast.error('End date must be after start date'); return }
+    if (requestedDays > remaining) { toast.error('Insufficient leave balance'); return }
     try {
       await mutateAsync({ ...form, total_days: days, status: 'pending' })
       toast.success('Leave request submitted!', { description: 'Your request is pending approval.' })
@@ -139,10 +159,30 @@ function RequestLeaveDialog() {
               />
             </div>
           </div>
-          {calcDays() > 0 && (
-            <div className="rounded-lg bg-primary/5 px-3 py-2 text-sm">
-              <span className="font-medium text-primary">{calcDays()} working day{calcDays() !== 1 ? 's' : ''}</span>
-              <span className="text-muted-foreground"> requested</span>
+          {calcDays() > 0 && selectedType && (
+            <div className="rounded-lg bg-primary/5 px-3 py-2 text-sm flex justify-between items-center">
+              <div>
+                <span className="font-medium text-primary">{requestedDays} working day{requestedDays !== 1 ? 's' : ''}</span>
+                <span className="text-muted-foreground"> requested</span>
+              </div>
+              <div className="text-right">
+                <span className="text-muted-foreground text-xs block">Projected Balance:</span>
+                <span className={`font-semibold ${projectedRemaining < 0 ? 'text-red-500' : 'text-primary'}`}>
+                  {projectedRemaining} days
+                </span>
+              </div>
+            </div>
+          )}
+          {isSickLeave && (
+            <div className="space-y-1.5">
+              <Label>Medical Certificate *</Label>
+              <input
+                type="file"
+                required
+                accept="image/*,.pdf"
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground file:border-0 file:bg-primary file:text-primary-foreground file:text-sm file:font-medium file:mr-4 file:px-3 file:py-1 file:rounded-md shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <p className="text-[10px] text-muted-foreground">Required for Sick Leave (PDF, JPG, PNG)</p>
             </div>
           )}
           <div className="space-y-1.5">
@@ -246,26 +286,47 @@ function LeaveCard({ leave, onAction }: { leave: LeaveRequest; onAction?: (id: s
 }
 
 export default function LeavesPage() {
+  const { can } = usePermissions()
   const [activeTab, setActiveTab] = useState('all')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{ id: string, status: string } | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
   const { employee } = useAuthStore()
   const { data: leaves, isLoading } = useLeaveRequests(activeTab)
   const { mutateAsync: updateStatus } = useUpdateLeaveStatus()
   const { data: leaveTypes } = useLeaveTypes()
   const { data: balances } = useLeaveBalances(employee?.id ?? '')
 
+  const filteredLeaves = leaves?.filter(l => {
+    const matchesCategory = !selectedCategory || l.leave_type_id === selectedCategory
+    const searchLower = searchQuery.toLowerCase()
+    const matchesSearch = !searchQuery || 
+      l.employees?.first_name?.toLowerCase().includes(searchLower) ||
+      l.employees?.last_name?.toLowerCase().includes(searchLower)
+    return matchesCategory && matchesSearch
+  })
+
   const getBalance = (leaveTypeId: string) =>
     balances?.find(b => b.leave_type_id === leaveTypeId)
 
   const handleAction = async (id: string, status: string) => {
+    setConfirmAction({ id, status })
+    setRejectReason('')
+  }
+
+  const executeAction = async () => {
+    if (!confirmAction) return
     try {
-      await updateStatus({ id, status })
-      toast.success(`Leave request ${status}`)
+      await updateStatus({ id: confirmAction.id, status: confirmAction.status, review_notes: confirmAction.status === 'rejected' ? rejectReason : undefined })
+      toast.success(`Leave request ${confirmAction.status}`)
+      setConfirmAction(null)
     } catch {
       toast.error('Failed to update leave request')
     }
   }
 
-  const pendingCount = leaves?.filter(l => l.status === 'pending').length ?? 0
+  const pendingCount = filteredLeaves?.filter(l => l.status === 'pending').length ?? 0
 
   return (
     <div className="space-y-6">
@@ -285,45 +346,9 @@ export default function LeavesPage() {
         </div>
       </div>
 
-      {/* Leave balance cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        {leaveTypes?.map(lt => {
-          const bal = getBalance(lt.id)
-          const used = bal?.used_days ?? 0
-          const allocated = bal?.allocated_days ?? lt.days_allowed
-          const remaining = Math.max(0, allocated - used)
-          const usedPct = allocated > 0 ? Math.round((used / allocated) * 100) : 0
-          return (
-            <Card key={lt.id} className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="size-2 rounded-full shrink-0" style={{ background: lt.color }} />
-                    <span className="text-xs font-semibold text-muted-foreground">{lt.code}</span>
-                  </div>
-                </div>
-                <p className="text-xs font-semibold leading-tight">{lt.name}</p>
-                {bal ? (
-                  <>
-                    <div className="flex items-end gap-1">
-                      <span className="text-xl font-bold leading-none">{remaining}</span>
-                      <span className="text-xs text-muted-foreground mb-0.5">/{allocated}d</span>
-                    </div>
-                    <Progress value={usedPct} className="h-1" />
-                    <p className="text-[10px] text-muted-foreground">{used} used</p>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground">{lt.days_allowed} days/yr</p>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-
       {/* Requests */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="pending" className="gap-1.5">
@@ -335,6 +360,31 @@ export default function LeavesPage() {
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
           </TabsList>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search employee..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-[200px] pl-9"
+              />
+            </div>
+            {can.manageLeaves() && (
+              <Select value={selectedCategory || 'all'} onValueChange={v => setSelectedCategory(v === 'all' ? null : v)}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="mr-2 size-4 text-muted-foreground" />
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {leaveTypes?.map(lt => (
+                    <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
 
         {['all', 'pending', 'approved', 'rejected'].map(tab => (
@@ -343,7 +393,7 @@ export default function LeavesPage() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-48" />)}
               </div>
-            ) : !leaves?.length ? (
+            ) : !filteredLeaves?.length ? (
               <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
                 <Calendar className="mb-3 size-10 text-muted-foreground/40" />
                 <p className="text-sm font-medium">No leave requests</p>
@@ -351,7 +401,7 @@ export default function LeavesPage() {
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {leaves.map(lr => (
+                {filteredLeaves.map(lr => (
                   <motion.div key={lr.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <LeaveCard leave={lr} onAction={handleAction} />
                   </motion.div>
@@ -361,6 +411,43 @@ export default function LeavesPage() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction?.status === 'approved' ? 'Approve' : 'Reject'} Leave Request
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to {confirmAction?.status === 'approved' ? 'approve' : 'reject'} this request?
+            </p>
+            {confirmAction?.status === 'rejected' && (
+              <div className="space-y-1.5">
+                <Label>Reason for rejection *</Label>
+                <Textarea 
+                  value={rejectReason} 
+                  onChange={e => setRejectReason(e.target.value)}
+                  placeholder="Explain why this request is rejected..."
+                  required
+                />
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmAction(null)}>Cancel</Button>
+              <Button 
+                variant={confirmAction?.status === 'rejected' ? 'destructive' : 'default'}
+                onClick={executeAction}
+                disabled={confirmAction?.status === 'rejected' && !rejectReason.trim()}
+              >
+                Confirm {confirmAction?.status === 'approved' ? 'Approval' : 'Rejection'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

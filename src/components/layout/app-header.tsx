@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell, Search, Brain, ArrowRight } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
@@ -192,11 +192,82 @@ export function AppHeader() {
 
         <ModeToggle />
 
-        <Avatar className="size-8">
-          <AvatarFallback className="bg-primary text-xs text-primary-foreground">
-            {`${employee?.first_name?.[0] ?? ''}${employee?.last_name?.[0] ?? ''}`.toUpperCase() || 'U'}
-          </AvatarFallback>
-        </Avatar>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Avatar className="size-8 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+              <AvatarFallback className="bg-primary text-xs text-primary-foreground">
+                {`${employee?.first_name?.[0] ?? ''}${employee?.last_name?.[0] ?? ''}`.toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+          </SheetTrigger>
+          <SheetContent className="w-full sm:max-w-sm overflow-y-auto">
+            <SheetHeader className="mb-6">
+              <SheetTitle>My Profile</SheetTitle>
+            </SheetHeader>
+            {employee ? (
+              <div className="space-y-6">
+                <div className="flex flex-col items-center gap-3">
+                  <Avatar className="size-24">
+                    <AvatarFallback className="bg-primary text-3xl text-primary-foreground">
+                      {`${employee.first_name?.[0] ?? ''}${employee.last_name?.[0] ?? ''}`.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="text-center">
+                    <h3 className="text-xl font-bold">{employee.first_name} {employee.last_name}</h3>
+                    <p className="text-sm text-muted-foreground">{employee.position || 'Employee'}</p>
+                    <Badge variant="secondary" className="mt-2 capitalize">{employee.status}</Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Work Information</h4>
+                    <div className="grid gap-2 text-sm">
+                      <div className="flex justify-between py-1 border-b border-border/50">
+                        <span className="text-muted-foreground">Employee ID</span>
+                        <span className="font-medium">{employee.employee_id || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-border/50">
+                        <span className="text-muted-foreground">Department</span>
+                        <span className="font-medium">{employee.departments?.name || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-border/50">
+                        <span className="text-muted-foreground">Role</span>
+                        <span className="font-medium capitalize">{employee.role.replace('_', ' ')}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-border/50">
+                        <span className="text-muted-foreground">Employment</span>
+                        <span className="font-medium capitalize">{employee.employment_type.replace('_', ' ')}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-border/50">
+                        <span className="text-muted-foreground">Date Hired</span>
+                        <span className="font-medium">{employee.hire_date ? format(new Date(employee.hire_date), 'MMM d, yyyy') : 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Contact</h4>
+                    <div className="grid gap-2 text-sm">
+                      <div className="flex justify-between py-1 border-b border-border/50">
+                        <span className="text-muted-foreground">Email</span>
+                        <span className="font-medium">{employee.email}</span>
+                      </div>
+                      <div className="flex justify-between py-1 border-b border-border/50">
+                        <span className="text-muted-foreground">Phone</span>
+                        <span className="font-medium">{employee.phone || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                No profile information available.
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   )

@@ -58,7 +58,7 @@ export function ModeToggle() {
                 <span className="flex items-center gap-1.5">
                   {value === "system" && (
                     <span className="text-[10px] text-muted-foreground">
-                      ({resolvedTheme})
+                      ({resolvedTheme?.toUpperCase()})
                     </span>
                   )}
                   {theme === value && (
@@ -71,7 +71,7 @@ export function ModeToggle() {
         </DropdownMenu>
       </TooltipTrigger>
       <TooltipContent side="bottom" className="text-xs">
-        <p>Theme: {theme === "system" ? `System (${resolvedTheme})` : theme.charAt(0).toUpperCase() + theme.slice(1)}</p>
+        <p>Theme: {theme === "system" ? `System (${resolvedTheme?.toUpperCase()})` : theme.charAt(0).toUpperCase() + theme.slice(1)}</p>
         <p className="text-muted-foreground">Press D to toggle</p>
       </TooltipContent>
     </Tooltip>

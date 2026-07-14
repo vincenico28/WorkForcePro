@@ -3,7 +3,7 @@ import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isToday, isWeekend, addMonths, subMonths,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus, Loader2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Loader2, X, Search } from 'lucide-react'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule } from '@/hooks/use-schedules'
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
@@ -22,6 +23,8 @@ export default function SchedulePage() {
   const { can } = usePermissions()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedEmployee, setSelectedEmployee] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedDepartment, setSelectedDepartment] = useState('all')
   const [assignOpen, setAssignOpen] = useState(false)
   const [assignForm, setAssignForm] = useState({ employee_id: '', shift_id: '', date: format(new Date(), 'yyyy-MM-dd') })
 
@@ -42,7 +45,31 @@ export default function SchedulePage() {
   const deleteSchedule = useDeleteSchedule()
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-  const filteredEmployees = employees ?? []
+  
+  const uniqueDepartments = useMemo(() => {
+    const deps = new Set<string>()
+    employees?.forEach(e => { if (e.departments?.name) deps.add(e.departments.name) })
+    return Array.from(deps).sort()
+  }, [employees])
+
+  const filteredEmployees = useMemo(() => {
+    let result = employees ?? []
+    if (selectedEmployee !== 'all') {
+      result = result.filter(e => e.id === selectedEmployee)
+    }
+    if (selectedDepartment !== 'all') {
+      result = result.filter(e => e.departments?.name === selectedDepartment)
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter(e => 
+        e.first_name.toLowerCase().includes(q) || 
+        e.last_name?.toLowerCase().includes(q)
+      )
+    }
+    return result
+  }, [employees, selectedEmployee, selectedDepartment, searchQuery])
+
   const isLoading = empLoading || shiftsLoading || schedLoading
 
   const scheduleMap = useMemo(() => {
@@ -129,17 +156,39 @@ export default function SchedulePage() {
             </Button>
           </div>
           {can.isSupervisor() && (
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All employees" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Employees</SelectItem>
-                {employees?.map(e => (
-                  <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search employee..."
+                  className="w-48 pl-8"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Depts</SelectItem>
+                  {uniqueDepartments.map(dep => (
+                    <SelectItem key={dep} value={dep}>{dep}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="All employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees?.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
         </CardHeader>
         <CardContent className="overflow-x-auto">

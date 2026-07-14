@@ -14,6 +14,9 @@ import { cn } from '@/lib/utils'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from '@/components/ui/dialog'
 
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; className: string; dot: string }> = {
   info: {
@@ -64,53 +67,82 @@ function NotificationItem({
     if (!notif.is_read) {
       markOne({ id: notif.id, employeeId })
     }
-    if (notif.action_url) {
-      navigate(notif.action_url)
-    }
   }
 
   return (
-    <div
-      onClick={handleClick}
-      className={cn(
-        'group relative flex gap-4 rounded-xl border border-border p-4 transition-all hover:shadow-sm cursor-pointer',
-        !notif.is_read && 'bg-primary/[0.02] border-primary/20',
-        notif.action_url && 'hover:border-primary/30',
-      )}
-    >
-      {!notif.is_read && (
-        <span className={cn('absolute right-4 top-4 size-2 rounded-full', type.dot)} />
-      )}
-      <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', type.className)}>
-        <Icon className="size-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="mb-0.5 flex items-center gap-2">
-          <p className={cn(
-            'text-sm font-medium',
-            !notif.is_read ? 'text-foreground' : 'text-muted-foreground',
-          )}>
-            {notif.title}
-          </p>
-          {notif.action_url && (
-            <ExternalLink className="size-3 text-muted-foreground/50 shrink-0" />
+    <Dialog>
+      <DialogTrigger asChild>
+        <div
+          onClick={handleClick}
+          className={cn(
+            'group relative flex gap-4 rounded-xl border border-border p-4 transition-all hover:shadow-sm cursor-pointer',
+            !notif.is_read && 'bg-primary/[0.02] border-primary/20',
+            'hover:border-primary/30',
           )}
-        </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
-        <div className="mt-2 flex items-center gap-3">
-          <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
-            <CategoryIcon className="size-3" />
-            {category.label}
-          </span>
-          <span className="text-[10px] text-muted-foreground/70">
-            {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
-          </span>
+        >
           {!notif.is_read && (
-            <span className="text-[10px] text-primary font-medium">New</span>
+            <span className={cn('absolute right-4 top-4 size-2 rounded-full', type.dot)} />
           )}
+          <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', type.className)}>
+            <Icon className="size-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="mb-0.5 flex items-center gap-2">
+              <p className={cn(
+                'text-sm font-medium',
+                !notif.is_read ? 'text-foreground' : 'text-muted-foreground',
+              )}>
+                {notif.title}
+              </p>
+              {notif.action_url && (
+                <ExternalLink className="size-3 text-muted-foreground/50 shrink-0" />
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">{notif.message}</p>
+            <div className="mt-2 flex items-center gap-3">
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground/70">
+                <CategoryIcon className="size-3" />
+                {category.label}
+              </span>
+              <span className="text-[10px] text-muted-foreground/70">
+                {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+              </span>
+              {!notif.is_read && (
+                <span className="text-[10px] text-primary font-medium">New</span>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge className={cn('text-xs gap-1', type.className)}>
+              <Icon className="size-3" />
+              {type.dot === 'bg-blue-500' ? 'Info' : type.dot === 'bg-emerald-500' ? 'Success' : type.dot === 'bg-amber-500' ? 'Warning' : 'Error'}
+            </Badge>
+            <Badge variant="outline" className="text-xs gap-1">
+              <CategoryIcon className="size-3 text-muted-foreground" />
+              {category.label}
+            </Badge>
+          </div>
+          <DialogTitle>{notif.title}</DialogTitle>
+          <p className="text-xs text-muted-foreground pt-1">
+            {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+          </p>
+        </DialogHeader>
+        <div className="mt-2 text-sm leading-relaxed whitespace-pre-wrap border-t pt-4">
+          {notif.message}
+        </div>
+        {notif.action_url && (
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => navigate(notif.action_url)} className="gap-2">
+              View Details <ExternalLink className="size-4" />
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -152,6 +184,16 @@ export default function NotificationsPage() {
             Mark all as read
           </Button>
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-xs font-medium text-muted-foreground">Legend:</span>
+        {Object.entries(TYPE_CONFIG).map(([k, cfg]) => (
+          <Badge key={k} className={`text-xs gap-1.5 ${cfg.className}`}>
+            <cfg.icon className="size-3" />
+            {k === 'info' ? 'Info' : k === 'success' ? 'Success' : k === 'warning' ? 'Warning' : 'Error'}
+          </Badge>
+        ))}
       </div>
 
       {/* Filters */}
@@ -232,14 +274,6 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {!isLoading && (notifications ?? []).length === 0 && (
-        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
-          <Bell className="mx-auto mb-3 size-8 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">
-            Notifications will appear here as activity happens in your organization.
-          </p>
-        </div>
-      )}
     </div>
   )
 }

@@ -11,7 +11,9 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Calendar } from '@/components/ui/calendar'
 import { toast } from 'sonner'
+import { startOfMonth, endOfMonth, isSameDay } from 'date-fns'
 
 const ATT_STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   present: { label: 'Present', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400', icon: CheckCircle },
@@ -121,12 +123,15 @@ function ClockWidget() {
 
 export default function AttendancePage() {
   const { can } = usePermissions()
-  const [selectedDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
   const { data: todayAttendance, isLoading } = useAttendance(selectedDate)
 
-  const endDate = format(new Date(), 'yyyy-MM-dd')
-  const startDate = format(subDays(new Date(), 6), 'yyyy-MM-dd')
-  const { data: weekAttendance } = useAttendanceRange(startDate, endDate)
+  const endDate = format(endOfMonth(calendarMonth), 'yyyy-MM-dd')
+  const startDate = format(startOfMonth(calendarMonth), 'yyyy-MM-dd')
+  const { data: monthAttendance } = useAttendanceRange(startDate, endDate)
+
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
   const summary = {
     present: todayAttendance?.filter(a => a.status === 'present').length ?? 0,
@@ -134,6 +139,8 @@ export default function AttendancePage() {
     absent: todayAttendance?.filter(a => a.status === 'absent').length ?? 0,
     total: todayAttendance?.length ?? 0,
   }
+
+  const filteredAttendance = todayAttendance?.filter(a => !statusFilter || a.status === statusFilter)
 
   return (
     <div className="space-y-6">
@@ -159,8 +166,8 @@ export default function AttendancePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Today's Summary</CardTitle>
-                <CardDescription>{format(new Date(), 'EEEE, MMMM d, yyyy')}</CardDescription>
+                <CardTitle className="text-base">{isSameDay(selectedDate, new Date()) ? "Today's Summary" : "Daily Summary"}</CardTitle>
+                <CardDescription>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="tabular-nums">{summary.total} tracked</Badge>
@@ -170,11 +177,15 @@ export default function AttendancePage() {
           <CardContent>
             <div className="mb-4 grid grid-cols-3 gap-3">
               {[
-                { label: 'Present', value: summary.present, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-                { label: 'Late', value: summary.late, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
-                { label: 'Absent', value: summary.absent, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30' },
+                { label: 'Present', id: 'present', value: summary.present, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30 ring-emerald-500' },
+                { label: 'Late', id: 'late', value: summary.late, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30 ring-amber-500' },
+                { label: 'Absent', id: 'absent', value: summary.absent, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-950/30 ring-red-500' },
               ].map((s) => (
-                <div key={s.label} className={`rounded-xl p-3 text-center ${s.bg}`}>
+                <div 
+                  key={s.label} 
+                  onClick={() => setStatusFilter(statusFilter === s.id ? null : s.id)}
+                  className={`rounded-xl p-3 text-center cursor-pointer transition-all hover:ring-2 ${statusFilter === s.id ? 'ring-2 shadow-sm' : ''} ${s.bg}`}
+                >
                   <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                 </div>
@@ -184,10 +195,12 @@ export default function AttendancePage() {
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)
-              ) : todayAttendance?.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">No attendance records for today</p>
+              ) : filteredAttendance?.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {statusFilter ? `No ${statusFilter} records for today` : 'No attendance records for today'}
+                </p>
               ) : (
-                todayAttendance?.map((record) => {
+                filteredAttendance?.map((record) => {
                   const cfg = ATT_STATUS_CONFIG[record.status]
                   const Icon = cfg?.icon ?? Clock
                   return (
@@ -230,44 +243,31 @@ export default function AttendancePage() {
         </Card>
       </div>
 
-      {/* Weekly Overview */}
+      {/* Monthly Calendar View */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">This Week Overview</CardTitle>
-          <CardDescription>Attendance breakdown for the last 7 days</CardDescription>
+          <CardTitle className="text-base">Attendance Calendar</CardTitle>
+          <CardDescription>View monthly attendance history</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Array.from({ length: 7 }).map((_, i) => {
-              const d = subDays(new Date(), 6 - i)
-              const dateStr = format(d, 'yyyy-MM-dd')
-              const dayAtt = weekAttendance?.filter(a => a.date === dateStr) ?? []
-              const present = dayAtt.filter(a => a.status === 'present' || a.status === 'late').length
-              const absent = dayAtt.filter(a => a.status === 'absent').length
-              const total = dayAtt.length
-              const rate = total > 0 ? Math.round((present / total) * 100) : 0
-              const isWeekend = [0, 6].includes(d.getDay())
-
-              if (isWeekend) return null
-
-              return (
-                <div key={dateStr} className="flex items-center gap-4">
-                  <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">
-                    {format(d, 'EEE, MMM d')}
-                  </span>
-                  <div className="flex-1 rounded-full bg-muted h-2.5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${rate}%` }}
-                    />
-                  </div>
-                  <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
-                    {present}/{total} · {rate}%
-                  </span>
-                </div>
-              )
-            }).filter(Boolean)}
-          </div>
+        <CardContent className="flex justify-center">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => { if (date) setSelectedDate(date) }}
+            month={calendarMonth}
+            onMonthChange={setCalendarMonth}
+            className="rounded-md border p-4"
+            modifiers={{
+              present: (date) => monthAttendance?.some(a => a.status === 'present' && isSameDay(new Date(a.date), date)) ?? false,
+              late: (date) => monthAttendance?.some(a => a.status === 'late' && isSameDay(new Date(a.date), date)) ?? false,
+              absent: (date) => monthAttendance?.some(a => a.status === 'absent' && isSameDay(new Date(a.date), date)) ?? false,
+            }}
+            modifiersClassNames={{
+              present: 'bg-emerald-100 text-emerald-900 font-bold dark:bg-emerald-900/50 dark:text-emerald-200',
+              late: 'bg-amber-100 text-amber-900 font-bold dark:bg-amber-900/50 dark:text-amber-200',
+              absent: 'bg-red-100 text-red-900 font-bold dark:bg-red-900/50 dark:text-red-200',
+            }}
+          />
         </CardContent>
       </Card>
     </div>

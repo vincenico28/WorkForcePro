@@ -167,4 +167,7 @@
   body {
     @apply bg-background text-foreground;
   }
+  button, a, [role="button"], [role="tab"], [role="menuitem"], [role="combobox"], [role="option"] {
+    @apply cursor-pointer;
+  }
 }

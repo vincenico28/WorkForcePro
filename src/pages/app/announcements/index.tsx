@@ -203,6 +203,7 @@ export default function AnnouncementsPage() {
   const { employee } = useAuthStore()
   const { mutateAsync: deleteAnn } = useDeleteAnnouncement()
   const [editingAnn, setEditingAnn] = useState<any | null>(null)
+  const [viewingAnn, setViewingAnn] = useState<any | null>(null)
 
   const pinned = announcements?.filter(a => a.is_pinned) ?? []
   const regular = announcements?.filter(a => !a.is_pinned) ?? []
@@ -229,6 +230,16 @@ export default function AnnouncementsPage() {
         {can.createAnnouncements() && <CreateAnnouncementDialog />}
       </div>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-xs font-medium text-muted-foreground">Legend:</span>
+        {Object.entries(TYPE_CONFIG).map(([k, cfg]) => (
+          <Badge key={k} className={`text-xs gap-1.5 ${cfg.className}`}>
+            <cfg.icon className="size-3" />
+            {cfg.label}
+          </Badge>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="space-y-4">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
@@ -248,6 +259,7 @@ export default function AnnouncementsPage() {
                   canManage={canManage(ann)}
                   onEdit={() => setEditingAnn(ann)}
                   onDelete={() => handleDelete(ann.id)}
+                  onView={() => setViewingAnn(ann)}
                 />
               ))}
             </div>
@@ -264,6 +276,7 @@ export default function AnnouncementsPage() {
                   canManage={canManage(ann)}
                   onEdit={() => setEditingAnn(ann)}
                   onDelete={() => handleDelete(ann.id)}
+                  onView={() => setViewingAnn(ann)}
                 />
               ))}
             </div>
@@ -281,21 +294,64 @@ export default function AnnouncementsPage() {
       {editingAnn && (
         <EditAnnouncementDialog ann={editingAnn} onClose={() => setEditingAnn(null)} />
       )}
+      
+      <Dialog open={!!viewingAnn} onOpenChange={() => setViewingAnn(null)}>
+        <DialogContent className="max-w-2xl">
+          {viewingAnn && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2 mb-2">
+                  {viewingAnn.is_pinned && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <Pin className="size-2.5" /> Pinned
+                    </Badge>
+                  )}
+                  <Badge className={`text-xs ${TYPE_CONFIG[viewingAnn.type as keyof typeof TYPE_CONFIG]?.className ?? TYPE_CONFIG.general.className}`}>
+                    {TYPE_CONFIG[viewingAnn.type as keyof typeof TYPE_CONFIG]?.label ?? 'General'}
+                  </Badge>
+                </div>
+                <DialogTitle className="text-xl">{viewingAnn.title}</DialogTitle>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
+                  <Avatar className="size-6">
+                    <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
+                      {`${viewingAnn.employees?.first_name?.[0] ?? ''}${viewingAnn.employees?.last_name?.[0] ?? ''}`}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>
+                    {viewingAnn.employees?.first_name} {viewingAnn.employees?.last_name}
+                  </span>
+                  <span>·</span>
+                  <span>
+                    {viewingAnn.published_at ? format(new Date(viewingAnn.published_at), 'MMM d, yyyy h:mm a') : ''}
+                  </span>
+                </div>
+              </DialogHeader>
+              <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed border-t pt-4">
+                {viewingAnn.content}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function AnnouncementCard({ ann, canManage, onEdit, onDelete }: {
+function AnnouncementCard({ ann, canManage, onEdit, onDelete, onView }: {
   ann: any
   canManage: boolean
   onEdit: () => void
   onDelete: () => void
+  onView: () => void
 }) {
   const cfg = TYPE_CONFIG[ann.type as keyof typeof TYPE_CONFIG] ?? TYPE_CONFIG.general
   const Icon = cfg.icon
 
   return (
-    <Card className={`transition-shadow hover:shadow-md ${ann.is_pinned ? 'border-primary/30' : ''}`}>
+    <Card 
+      className={`transition-shadow hover:shadow-md cursor-pointer ${ann.is_pinned ? 'border-primary/30' : ''}`}
+      onClick={onView}
+    >
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
           <div className={`mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ${cfg.className}`}>
@@ -312,7 +368,7 @@ function AnnouncementCard({ ann, canManage, onEdit, onDelete }: {
               <Badge className={`text-xs ${cfg.className}`}>{cfg.label}</Badge>
             </div>
             <h3 className="font-semibold text-sm mb-1">{ann.title}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{ann.content}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">{ann.content}</p>
             <div className="mt-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
@@ -331,7 +387,7 @@ function AnnouncementCard({ ann, canManage, onEdit, onDelete }: {
                 </span>
               </div>
               {canManage && (
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" className="size-7" onClick={onEdit}>
                     <Pencil className="size-3.5" />
                   </Button>

@@ -16,7 +16,7 @@ export function useAttendance(date?: Date) {
         .select('*, employees:employees!attendance_records_employee_id_fkey(id, first_name, last_name, avatar_url, position, departments(name))')
         .eq('date', dateStr)
         .order('clock_in', { ascending: false })
-      
+
       if (employee?.role === 'employee') {
         query = query.eq('employee_id', employee.id)
       }
@@ -74,8 +74,34 @@ export function useClockIn() {
     mutationFn: async (employeeId: string) => {
       const today = format(new Date(), 'yyyy-MM-dd')
       const now = new Date().toISOString()
-      const clockInHour = new Date().getHours()
-      const status = clockInHour > 9 ? 'late' : 'present'
+      
+      const { data: schedule } = await supabase
+        .from('schedules')
+        .select('*, shifts(*)')
+        .eq('employee_id', employeeId)
+        .eq('date', today)
+        .maybeSingle()
+
+      let status = 'present'
+      if (schedule?.shifts && !Array.isArray(schedule.shifts) && schedule.shifts.start_time) {
+        const [shiftHour, shiftMinute] = schedule.shifts.start_time.split(':').map(Number)
+        const currentHour = new Date().getHours()
+        const currentMinute = new Date().getMinutes()
+        
+        let shiftTimeMinutes = (shiftHour * 60) + shiftMinute
+        let currentTimeMinutes = (currentHour * 60) + currentMinute
+        
+        if (schedule.shifts.is_overnight && currentHour < 12) {
+           currentTimeMinutes += 24 * 60
+        }
+        
+        if (currentTimeMinutes > shiftTimeMinutes) {
+          status = 'late'
+        }
+      } else {
+        const clockInHour = new Date().getHours()
+        status = clockInHour > 9 ? 'late' : 'present'
+      }
 
       const { data, error } = await supabase
         .from('attendance_records')
@@ -101,7 +127,7 @@ export function useClockOut() {
       const now = new Date()
       const { data: existing } = await supabase
         .from('attendance_records')
-        .select('clock_in')
+        .select('clock_in, date')
         .eq('id', attendanceId)
         .single()
 
@@ -123,9 +149,31 @@ export function useClockOut() {
         .select()
         .single()
       if (error) throw error
+
+      if (existing?.clock_in && existing?.date) {
+        const { error: tsError } = await supabase
+          .from('timesheet_entries')
+          .insert({
+            employee_id: employeeId,
+            date: existing.date,
+            start_time: format(new Date(existing.clock_in), 'HH:mm:ss'),
+            end_time: format(now, 'HH:mm:ss'),
+            break_minutes: 60,
+            total_hours: totalHours,
+            overtime_hours: Math.max(0, totalHours - 8),
+            source: 'clock_in',
+            attendance_id: attendanceId,
+            is_approved: false
+          })
+        if (tsError) console.error('Failed to auto-generate timesheet', tsError)
+      }
+
       return data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['attendance'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['attendance'] })
+      qc.invalidateQueries({ queryKey: ['timesheets'] })
+    },
   })
 }
 

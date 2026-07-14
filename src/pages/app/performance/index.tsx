@@ -16,6 +16,10 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Check, ChevronsUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import {
   RadarChart, PolarGrid, PolarAngleAxis, Radar,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -73,6 +77,7 @@ function RatingInput({ label, value, onChange }: { label: string; value: number;
 export default function PerformancePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [newReviewOpen, setNewReviewOpen] = useState(false)
+  const [comboboxOpen, setComboboxOpen] = useState(false)
   const { employee } = useAuthStore()
   const { can } = usePermissions()
   const { data: reviews, isLoading } = usePerformanceReviews()
@@ -386,14 +391,52 @@ export default function PerformancePage() {
           <form onSubmit={handleCreate} className="mt-2 space-y-4">
             <div className="space-y-1.5">
               <Label>Employee *</Label>
-              <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {employees?.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={comboboxOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {form.employee_id
+                      ? (() => {
+                          const emp = employees?.find((e) => e.id === form.employee_id)
+                          return emp ? `${emp.first_name} ${emp.last_name}` : 'Select employee'
+                        })()
+                      : 'Select employee...'}
+                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[460px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search employee..." />
+                    <CommandList>
+                      <CommandEmpty>No employee found.</CommandEmpty>
+                      <CommandGroup>
+                        {employees?.map((emp) => (
+                          <CommandItem
+                            key={emp.id}
+                            value={`${emp.first_name} ${emp.last_name}`}
+                            onSelect={() => {
+                              setForm(f => ({ ...f, employee_id: emp.id }))
+                              setComboboxOpen(false)
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                'mr-2 size-4',
+                                form.employee_id === emp.id ? 'opacity-100' : 'opacity-0'
+                              )}
+                            />
+                            {emp.first_name} {emp.last_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
