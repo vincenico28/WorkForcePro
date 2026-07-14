@@ -12,6 +12,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar } from '@/components/ui/calendar'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { WebcamCapture } from '@/components/face-recognition/WebcamCapture'
 import { toast } from 'sonner'
 import { startOfMonth, endOfMonth, isSameDay } from 'date-fns'
 
@@ -38,20 +40,73 @@ function ClockWidget() {
   const isIn = !!todayAtt?.clock_in && !todayAtt?.clock_out
   const isDone = !!todayAtt?.clock_in && !!todayAtt?.clock_out
 
-  const handleClock = async () => {
+  const [showFaceVerification, setShowFaceVerification] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
+
+  const handleClockClick = () => {
     if (!employee?.id) { toast.error('No employee profile linked'); return }
+    if ((employee as any).face_encoding) {
+      setShowFaceVerification(true)
+    } else {
+      executeClock()
+    }
+  }
+
+  const executeClock = async () => {
     if (!isIn) {
       const t = toast.loading('Clocking in...')
-      await clockIn.mutateAsync(employee.id)
+      await clockIn.mutateAsync(employee!.id)
       toast.dismiss(t)
       toast.success('Clocked in!', { description: `${format(new Date(), 'h:mm a')}` })
     } else {
       const t = toast.loading('Clocking out...')
-      await clockOut.mutateAsync({ employeeId: employee.id, attendanceId: todayAtt!.id })
+      await clockOut.mutateAsync({ employeeId: employee!.id, attendanceId: todayAtt!.id })
       toast.dismiss(t)
       toast.success('Clocked out!', { description: `${format(new Date(), 'h:mm a')}` })
     }
     refetch()
+    setShowFaceVerification(false)
+  }
+
+  const handleFaceVerify = async (imageSrc: string) => {
+    const faceEncoding = (employee as any).face_encoding
+    if (!faceEncoding) return
+    
+    setIsVerifying(true)
+    const byteString = atob(imageSrc.split(',')[1])
+    const mimeString = imageSrc.split(',')[0].split(':')[1].split(';')[0]
+    const ab = new ArrayBuffer(byteString.length)
+    const ia = new Uint8Array(ab)
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i)
+    const blob = new Blob([ab], { type: mimeString })
+
+    const formData = new FormData()
+    formData.append('file', blob, 'verify.jpg')
+    formData.append('known_encoding', JSON.stringify(faceEncoding))
+
+    try {
+      const response = await fetch('http://localhost:8000/api/verify_face', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Verification failed')
+      }
+
+      const data = await response.json()
+      if (data.match) {
+        toast.success('Face verified successfully')
+        executeClock()
+      } else {
+        toast.error('Face verification failed', { description: 'Face does not match registered profile' })
+      }
+    } catch (error: any) {
+      toast.error('Verification error', { description: error.message })
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
   const totalWorked = todayAtt?.total_hours
@@ -82,7 +137,7 @@ function ClockWidget() {
             ) : (
               <Button
                 size="lg"
-                onClick={handleClock}
+                onClick={handleClockClick}
                 disabled={clockIn.isPending || clockOut.isPending}
                 className={`rounded-full px-8 ${isIn ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
               >
@@ -117,6 +172,19 @@ function ClockWidget() {
           <span>Office · GPS Verified</span>
         </div>
       </CardContent>
+      <Dialog open={showFaceVerification} onOpenChange={setShowFaceVerification}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Face ID Verification</DialogTitle>
+            <DialogDescription>
+              Please verify your identity to {isIn ? 'clock out' : 'clock in'}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center mt-4">
+            <WebcamCapture onCapture={handleFaceVerify} isLoading={isVerifying} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }
