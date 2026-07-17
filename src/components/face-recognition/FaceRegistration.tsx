@@ -4,9 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { useAuthStore } from '@/stores/auth.store';
 import { supabase } from '@/lib/supabase';
+import { playSuccessSound, playErrorSound } from '@/utils/audio';
 
-export function FaceRegistration() {
-  const { employee, setEmployee } = useAuthStore();
+interface FaceRegistrationProps {
+  targetEmployee?: any; // If provided, register for this employee instead of the logged-in user
+  onSuccess?: () => void;
+}
+
+export function FaceRegistration({ targetEmployee, onSuccess }: FaceRegistrationProps = {}) {
+  const { employee: authEmployee, setEmployee } = useAuthStore();
+  const employee = targetEmployee || authEmployee;
   const [isRegistering, setIsRegistering] = useState(false);
   const hasFaceId = !!(employee as any)?.face_encoding;
 
@@ -32,7 +39,8 @@ export function FaceRegistration() {
 
     try {
       // Assuming FastAPI runs locally on 8000
-      const response = await fetch('http://localhost:8000/api/register_face', {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      const response = await fetch(`${API_BASE}/api/register_face`, {
         method: 'POST',
         body: formData,
       });
@@ -53,10 +61,15 @@ export function FaceRegistration() {
 
       if (error) throw error;
 
-      // Update local store
-      setEmployee({ ...employee, face_encoding: faceEncoding } as any);
+      // Update local store only if it's the logged-in user
+      if (!targetEmployee) {
+        setEmployee({ ...employee, face_encoding: faceEncoding } as any);
+      }
+      playSuccessSound();
       toast.success('Face ID registered successfully!');
+      if (onSuccess) onSuccess();
     } catch (error: any) {
+      playErrorSound();
       toast.error('Face registration failed', { description: error.message });
     } finally {
       setIsRegistering(false);

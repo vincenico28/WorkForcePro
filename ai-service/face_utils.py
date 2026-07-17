@@ -42,4 +42,4 @@ def compare_faces(known_encoding: list[float], unknown_encoding: list[float], to
     
     # Calculate Euclidean distance
     distance = np.linalg.norm(known_arr - unknown_arr)
-    return distance <= tolerance
+    return bool(distance <= tolerance)

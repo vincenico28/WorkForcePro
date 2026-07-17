@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { Brain, Send, Sparkles, TrendingUp, Users, Clock, BarChart3, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -29,14 +28,14 @@ const MOCK_RESPONSES: Record<string, string> = {
   headcount: "**Department Headcount:**\n\nEngineering: **24** 📈 (+2 since Q1)\nSales: **15**\nMarketing: **10**\nOperations: **9**\nFinance: **7**\nProduct: **8**\nDesign: **6**\nHR: **5**\n\n**Total: 84 employees** | 1 on leave | 3 open positions",
 }
 
-function getResponse(message: string): string {
-  const lower = message.toLowerCase()
-  if (lower.includes('attend')) return MOCK_RESPONSES.attendance
-  if (lower.includes('leave') || lower.includes('absent')) return MOCK_RESPONSES.leave
-  if (lower.includes('overtime') || lower.includes('over time')) return MOCK_RESPONSES.overtime
-  if (lower.includes('headcount') || lower.includes('department')) return MOCK_RESPONSES.headcount
-  return MOCK_RESPONSES.default
-}
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+// Initialize Gemini API
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '')
+const model = genAI.getGenerativeModel({
+  model: 'gemini-3.5-flash',
+  systemInstruction: 'You are an AI HR Assistant for a Smart Workforce Management System. You help managers and employees analyze workforce data, generate reports, answer HR questions, and provide insights. Keep your answers concise, professional, and helpful. Use markdown for formatting.',
+})
 
 function formatMessage(text: string) {
   return text.split('\n').map((line, i) => {
@@ -45,6 +44,12 @@ function formatMessage(text: string) {
     }
     if (line.startsWith('**')) {
       return <p key={i} className="text-sm">{line.split('**').map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part)}</p>
+    }
+    if (line.startsWith('#')) {
+      return <p key={i} className="font-bold text-lg mt-2 mb-1">{line.replace(/#/g, '')}</p>
+    }
+    if (line.startsWith('* ')) {
+      return <li key={i} className="text-sm ml-4 list-disc">{line.substring(2)}</li>
     }
     if (line === '') return <div key={i} className="h-1" />
     return <p key={i} className="text-sm leading-relaxed">{line}</p>
@@ -56,19 +61,30 @@ export function AIAssistantPanel() {
     {
       id: '0',
       role: 'assistant',
-      content: "Hi! I'm your AI HR Assistant. I can help you analyze workforce data, generate reports, answer HR questions, and provide insights. What would you like to know?",
+      content: "Hi! I'm your AI HR Assistant powered by Gemini. I can help you analyze workforce data, generate reports, answer HR questions, and provide insights. What would you like to know?",
       timestamp: new Date(),
     },
   ])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Store the chat session to maintain conversation history
+  const chatRef = useRef<any>(null)
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (!chatRef.current) {
+      chatRef.current = model.startChat({
+        history: [],
+      })
     }
-  }, [messages])
+  }, [])
+
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, isTyping])
 
   const sendMessage = async (text?: string) => {
     const content = text ?? input.trim()
@@ -79,20 +95,37 @@ export function AIAssistantPanel() {
     setMessages((prev) => [...prev, userMsg])
     setIsTyping(true)
 
-    await new Promise((r) => setTimeout(r, 1200))
-    setIsTyping(false)
-
-    const aiMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: getResponse(content),
-      timestamp: new Date(),
+    try {
+      if (!chatRef.current) {
+        chatRef.current = model.startChat({ history: [] })
+      }
+      
+      const result = await chatRef.current.sendMessage(content)
+      const responseText = result.response.text()
+      
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: responseText,
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, aiMsg])
+    } catch (error) {
+      console.error('Gemini API Error:', error)
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "I'm sorry, I encountered an error connecting to the AI service. Please make sure your API key is configured correctly.",
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMsg])
+    } finally {
+      setIsTyping(false)
     }
-    setMessages((prev) => [...prev, aiMsg])
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 border-b border-border p-4">
         <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-violet-600">
@@ -126,7 +159,7 @@ export function AIAssistantPanel() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <div className="flex-1 overflow-y-scroll p-4 pr-2">
         <div className="space-y-4">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -169,8 +202,9 @@ export function AIAssistantPanel() {
               </div>
             </div>
           )}
+          <div ref={bottomRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Input */}
       <div className="border-t border-border p-3">

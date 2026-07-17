@@ -159,8 +159,6 @@ export function useClockOut() {
             start_time: format(new Date(existing.clock_in), 'HH:mm:ss'),
             end_time: format(now, 'HH:mm:ss'),
             break_minutes: 60,
-            total_hours: totalHours,
-            overtime_hours: Math.max(0, totalHours - 8),
             source: 'clock_in',
             attendance_id: attendanceId,
             is_approved: false

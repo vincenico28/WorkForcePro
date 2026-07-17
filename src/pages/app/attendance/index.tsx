@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { WebcamCapture } from '@/components/face-recognition/WebcamCapture'
+import { playSuccessSound, playErrorSound } from '@/utils/audio'
 import { toast } from 'sonner'
 import { startOfMonth, endOfMonth, isSameDay } from 'date-fns'
 
@@ -85,7 +86,8 @@ function ClockWidget() {
     formData.append('known_encoding', JSON.stringify(faceEncoding))
 
     try {
-      const response = await fetch('http://localhost:8000/api/verify_face', {
+      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      const response = await fetch(`${API_BASE}/api/verify_face`, {
         method: 'POST',
         body: formData,
       })
@@ -97,12 +99,15 @@ function ClockWidget() {
 
       const data = await response.json()
       if (data.match) {
+        playSuccessSound()
         toast.success('Face verified successfully')
         executeClock()
       } else {
+        playErrorSound()
         toast.error('Face verification failed', { description: 'Face does not match registered profile' })
       }
     } catch (error: any) {
+      playErrorSound()
       toast.error('Verification error', { description: error.message })
     } finally {
       setIsVerifying(false)

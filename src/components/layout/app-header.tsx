@@ -12,7 +12,7 @@ import {
   BreadcrumbPage, BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription,
 } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -106,6 +106,10 @@ export function AppHeader() {
             </Button>
           </SheetTrigger>
           <SheetContent className="w-full sm:max-w-[420px] p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>AI Assistant</SheetTitle>
+              <SheetDescription>Chat with the HR AI Assistant</SheetDescription>
+            </SheetHeader>
             <AIAssistantPanel />
           </SheetContent>
         </Sheet>
@@ -122,6 +126,7 @@ export function AppHeader() {
           </SheetTrigger>
           <SheetContent className="w-full sm:max-w-[380px]">
             <SheetHeader>
+              <SheetDescription className="sr-only">View your notifications</SheetDescription>
               <div className="flex items-center justify-between">
                 <SheetTitle>Notifications</SheetTitle>
                 <div className="flex items-center gap-2">

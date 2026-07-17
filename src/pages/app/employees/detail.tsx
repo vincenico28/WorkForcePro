@@ -13,11 +13,13 @@ import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { FaceRegistration } from '@/components/face-recognition/FaceRegistration'
 import { toast } from 'sonner'
 
 const STATUS_CONFIG: Record<string, string> = {
@@ -274,77 +276,96 @@ export default function EmployeeDetailPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit Profile</DialogTitle>
+            <DialogDescription className="sr-only">
+              Edit the employee's profile details and Face ID.
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSave} className="mt-2 space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>First Name *</Label>
-                <Input value={editForm.first_name} onChange={e => upd('first_name', e.target.value)} required />
+          
+          <Tabs defaultValue="profile" className="mt-2">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="profile">Profile Details</TabsTrigger>
+              <TabsTrigger value="face">Face ID</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="profile">
+              <form onSubmit={handleSave} className="mt-2 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>First Name *</Label>
+                    <Input value={editForm.first_name} onChange={e => upd('first_name', e.target.value)} required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Last Name</Label>
+                    <Input value={editForm.last_name} onChange={e => upd('last_name', e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email *</Label>
+                  <Input type="email" value={editForm.email} onChange={e => upd('email', e.target.value)} required />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Phone</Label>
+                    <Input value={editForm.phone} onChange={e => upd('phone', e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Position</Label>
+                    <Input value={editForm.position} onChange={e => upd('position', e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Department</Label>
+                    <Select value={editForm.department_id} onValueChange={v => upd('department_id', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select dept." /></SelectTrigger>
+                      <SelectContent>
+                        {departments?.map(d => (
+                          <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Role</Label>
+                    <Select value={editForm.role} onValueChange={v => upd('role', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="hr_manager">HR Manager</SelectItem>
+                        <SelectItem value="team_supervisor">Supervisor</SelectItem>
+                        <SelectItem value="employee">Employee</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Employment Type</Label>
+                  <Select value={editForm.employment_type} onValueChange={v => upd('employment_type', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full_time">Full Time</SelectItem>
+                      <SelectItem value="part_time">Part Time</SelectItem>
+                      <SelectItem value="contract">Contract</SelectItem>
+                      <SelectItem value="intern">Intern</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+                  <Button type="submit" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="face">
+              <div className="pt-4">
+                <FaceRegistration targetEmployee={employee} />
               </div>
-              <div className="space-y-1.5">
-                <Label>Last Name</Label>
-                <Input value={editForm.last_name} onChange={e => upd('last_name', e.target.value)} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email *</Label>
-              <Input type="email" value={editForm.email} onChange={e => upd('email', e.target.value)} required />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Phone</Label>
-                <Input value={editForm.phone} onChange={e => upd('phone', e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Position</Label>
-                <Input value={editForm.position} onChange={e => upd('position', e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Department</Label>
-                <Select value={editForm.department_id} onValueChange={v => upd('department_id', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select dept." /></SelectTrigger>
-                  <SelectContent>
-                    {departments?.map(d => (
-                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Role</Label>
-                <Select value={editForm.role} onValueChange={v => upd('role', v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="hr_manager">HR Manager</SelectItem>
-                    <SelectItem value="team_supervisor">Supervisor</SelectItem>
-                    <SelectItem value="employee">Employee</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Employment Type</Label>
-              <Select value={editForm.employment_type} onValueChange={v => upd('employment_type', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full_time">Full Time</SelectItem>
-                  <SelectItem value="part_time">Part Time</SelectItem>
-                  <SelectItem value="contract">Contract</SelectItem>
-                  <SelectItem value="intern">Intern</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
-          </form>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>
