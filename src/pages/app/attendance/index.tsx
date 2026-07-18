@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { format, subDays } from 'date-fns'
 import { Clock, CheckCircle, XCircle, AlertCircle, TimerReset, MapPin, Download } from 'lucide-react'
@@ -17,6 +17,7 @@ import { WebcamCapture } from '@/components/face-recognition/WebcamCapture'
 import { playSuccessSound, playErrorSound } from '@/utils/audio'
 import { toast } from 'sonner'
 import { startOfMonth, endOfMonth, isSameDay } from 'date-fns'
+import { downloadCSV } from '@/utils/export'
 
 const ATT_STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   present: { label: 'Present', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400', icon: CheckCircle },
@@ -215,6 +216,35 @@ export default function AttendancePage() {
 
   const filteredAttendance = todayAttendance?.filter(a => !statusFilter || a.status === statusFilter)
 
+  const monthlySummary = useMemo(() => {
+    if (!monthAttendance) return []
+    const summaryMap = new Map<string, any>()
+    
+    monthAttendance.forEach(record => {
+      const empId = record.employee_id
+      if (!summaryMap.has(empId)) {
+        summaryMap.set(empId, {
+          employee: record.employees,
+          present: 0,
+          late: 0,
+          absent: 0,
+          half_day: 0,
+        })
+      }
+      const stats = summaryMap.get(empId)
+      if (record.status === 'present') stats.present++
+      if (record.status === 'late') stats.late++
+      if (record.status === 'absent') stats.absent++
+      if (record.status === 'half_day') stats.half_day++
+    })
+  
+    return Array.from(summaryMap.values()).sort((a, b) => {
+      const nameA = a.employee?.first_name || ''
+      const nameB = b.employee?.first_name || ''
+      return nameA.localeCompare(nameB)
+    })
+  }, [monthAttendance])
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -223,7 +253,27 @@ export default function AttendancePage() {
           <p className="text-sm text-muted-foreground">Track and manage employee attendance</p>
         </div>
         {can.manageAttendance() && (
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1.5"
+            onClick={() => {
+              if (!monthAttendance || monthAttendance.length === 0) {
+                toast.error('No records to export')
+                return
+              }
+              const exportData = monthAttendance.map(record => ({
+                Date: record.date,
+                Employee: `${record.employees?.first_name} ${record.employees?.last_name}`,
+                Status: record.status,
+                'Clock In': record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : '',
+                'Clock Out': record.clock_out ? format(new Date(record.clock_out), 'h:mm a') : '',
+                'Total Hours': record.total_hours || 0
+              }))
+              downloadCSV(exportData, `Attendance_Report_${format(calendarMonth, 'MMM_yyyy')}`)
+              toast.success('Report downloaded successfully')
+            }}
+          >
             <Download className="size-4" />
             Export Report
           </Button>
@@ -316,33 +366,86 @@ export default function AttendancePage() {
         </Card>
       </div>
 
-      {/* Monthly Calendar View */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Attendance Calendar</CardTitle>
-          <CardDescription>View monthly attendance history</CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => { if (date) setSelectedDate(date) }}
-            month={calendarMonth}
-            onMonthChange={setCalendarMonth}
-            className="rounded-md border p-4"
-            modifiers={{
-              present: (date) => monthAttendance?.some(a => a.status === 'present' && isSameDay(new Date(a.date), date)) ?? false,
-              late: (date) => monthAttendance?.some(a => a.status === 'late' && isSameDay(new Date(a.date), date)) ?? false,
-              absent: (date) => monthAttendance?.some(a => a.status === 'absent' && isSameDay(new Date(a.date), date)) ?? false,
-            }}
-            modifiersClassNames={{
-              present: 'bg-emerald-100 text-emerald-900 font-bold dark:bg-emerald-900/50 dark:text-emerald-200',
-              late: 'bg-amber-100 text-amber-900 font-bold dark:bg-amber-900/50 dark:text-amber-200',
-              absent: 'bg-red-100 text-red-900 font-bold dark:bg-red-900/50 dark:text-red-200',
-            }}
-          />
-        </CardContent>
-      </Card>
+      {/* Monthly Calendar and Summary View */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Attendance Calendar</CardTitle>
+            <CardDescription>View monthly attendance history</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => { if (date) setSelectedDate(date) }}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              className="rounded-md border p-4"
+              modifiers={{
+                present: (date) => monthAttendance?.some(a => a.status === 'present' && isSameDay(new Date(a.date), date)) ?? false,
+                late: (date) => monthAttendance?.some(a => a.status === 'late' && isSameDay(new Date(a.date), date)) ?? false,
+                absent: (date) => monthAttendance?.some(a => a.status === 'absent' && isSameDay(new Date(a.date), date)) ?? false,
+              }}
+              modifiersClassNames={{
+                present: 'bg-emerald-100 text-emerald-900 font-bold dark:bg-emerald-900/50 dark:text-emerald-200',
+                late: 'bg-amber-100 text-amber-900 font-bold dark:bg-amber-900/50 dark:text-amber-200',
+                absent: 'bg-red-100 text-red-900 font-bold dark:bg-red-900/50 dark:text-red-200',
+              }}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Monthly Summary</CardTitle>
+                <CardDescription>Total days per employee for {format(calendarMonth, 'MMMM yyyy')}</CardDescription>
+              </div>
+              <Badge variant="secondary">{monthlySummary.length} employees</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+              {monthlySummary.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No attendance records found for this month.
+                </p>
+              ) : (
+                monthlySummary.map((stats, i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="size-8 shrink-0">
+                        <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                          {`${stats.employee?.first_name?.[0] ?? ''}${stats.employee?.last_name?.[0] ?? ''}`}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{stats.employee?.first_name} {stats.employee?.last_name}</p>
+                        <p className="text-xs text-muted-foreground">{stats.employee?.departments?.name || 'No Dept'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2.5 text-xs font-medium pl-2">
+                      <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle className="size-3.5" />
+                        <span>{stats.present}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <AlertCircle className="size-3.5" />
+                        <span>{stats.late}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                        <XCircle className="size-3.5" />
+                        <span>{stats.absent}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

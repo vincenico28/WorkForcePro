@@ -22,6 +22,7 @@ import { useTimesheetEntries } from '@/hooks/use-timesheets'
 import { useAttendanceRange } from '@/hooks/use-attendance'
 import { usePermissions } from '@/hooks/use-permissions'
 import { toast } from 'sonner'
+import { downloadCSV } from '@/utils/export'
 
 const chartConfig = {
   gross: { label: 'Est. Gross', color: 'var(--chart-1)' },
@@ -112,7 +113,28 @@ export default function PayrollPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.info('Export coming soon')}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-1.5" 
+            onClick={() => {
+              if (payrollRows.length === 0) {
+                toast.error('No payroll records to export')
+                return
+              }
+              const exportData = payrollRows.map(row => ({
+                Employee: `${row.emp.first_name} ${row.emp.last_name}`,
+                Department: row.emp.departments?.name || 'N/A',
+                'Total Hours': row.totalHours,
+                'OT Hours': row.overtimeHours,
+                Status: row.status,
+                'Gross Pay': `$${row.gross.toFixed(2)}`,
+                'Net Pay': `$${row.net.toFixed(2)}`
+              }))
+              downloadCSV(exportData, `Payroll_Export_${format(today, 'MMM_yyyy')}`)
+              toast.success('Payroll export downloaded successfully')
+            }}
+          >
             <Download className="size-4" />Export
           </Button>
           {can.managePayroll() && (

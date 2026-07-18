@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
+import { downloadCSV } from '@/utils/export'
+import { toast } from 'sonner'
 
 function MetricCard({
   title, value, change, icon: Icon, color, subtitle, loading,
@@ -192,7 +194,19 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
           <p className="text-sm text-muted-foreground">Workforce insights and performance metrics</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-1.5"
+          onClick={() => {
+            if (!deptData || deptData.length === 0) {
+              toast.error('No analytics data to export')
+              return
+            }
+            downloadCSV(deptData, `Analytics_Report_${format(today, 'MMM_yyyy')}`)
+            toast.success('Analytics report downloaded successfully')
+          }}
+        >
           <Download className="size-4" />Export Report
         </Button>
       </div>

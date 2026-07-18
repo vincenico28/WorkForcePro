@@ -33,7 +33,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '')
 const model = genAI.getGenerativeModel({
-  model: 'gemini-3.5-flash',
+  model: 'gemini-1.5-flash',
   systemInstruction: 'You are an AI HR Assistant for a Smart Workforce Management System. You help managers and employees analyze workforce data, generate reports, answer HR questions, and provide insights. Keep your answers concise, professional, and helpful. Use markdown for formatting.',
 })
 
