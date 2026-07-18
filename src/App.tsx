@@ -56,7 +56,7 @@ export default function App() {
     initialize()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      if (event === 'SIGNED_OUT') {
         initialize() // this will cleanly clear the store
       }
     })
