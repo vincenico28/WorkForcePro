@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
+import { supabase } from '@/lib/supabase'
 import LandingPage from '@/pages/landing'
 import LoginPage from '@/pages/auth/login'
 import ForgotPasswordPage from '@/pages/auth/forgot-password'
@@ -53,6 +54,14 @@ export default function App() {
 
   useEffect(() => {
     initialize()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        initialize() // this will cleanly clear the store
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [initialize])
 
   return (
