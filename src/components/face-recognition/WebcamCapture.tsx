@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { Button } from '@/components/ui/button';
 import { Camera, RefreshCw } from 'lucide-react';
@@ -23,6 +23,25 @@ export function WebcamCapture({ onCapture, isLoading }: WebcamCaptureProps) {
   const retake = () => {
     setImgSrc(null);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      if ((e.code === 'Space' || e.code === 'Enter') && !isLoading) {
+        e.preventDefault();
+        if (!imgSrc) {
+          capture();
+        } else {
+          retake(); // optionally let them retake with the same key
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [capture, imgSrc, isLoading]);
 
   return (
     <div className="flex flex-col items-center gap-4 p-4 border rounded-lg bg-muted/20">
@@ -67,7 +86,7 @@ export function WebcamCapture({ onCapture, isLoading }: WebcamCaptureProps) {
       
       <div className="text-sm text-muted-foreground text-center">
         {!imgSrc ? (
-          <p>Please look directly at the camera and ensure good lighting.</p>
+          <p>Please look directly at the camera and ensure good lighting. <br/><span className="font-semibold mt-1 inline-block">Press Enter or Space to capture.</span></p>
         ) : (
           <p>Analyzing facial features...</p>
         )}
