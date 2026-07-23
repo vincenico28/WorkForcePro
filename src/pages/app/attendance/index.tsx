@@ -501,9 +501,11 @@ export default function AttendancePage() {
         </Card>
       </div>
 
-      <div className="grid gap-6">
-        <DailyAttendanceMap records={filteredAttendance || []} />
-      </div>
+      {can.isHR() && (
+        <div className="grid gap-6">
+          <DailyAttendanceMap records={filteredAttendance || []} />
+        </div>
+      )}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveReques
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuthStore } from '@/stores/auth.store'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -42,6 +43,8 @@ function RequestLeaveDialog() {
   const { data: employees } = useEmployees()
   const { can } = usePermissions()
   const [open, setOpen] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState({
     employee_id: employee?.id ?? '',
     leave_type_id: '',
@@ -82,10 +85,42 @@ function RequestLeaveDialog() {
     const days = calcDays()
     if (days <= 0) { toast.error('End date must be after start date'); return }
     if (requestedDays > remaining) { toast.error('Insufficient leave balance'); return }
+    
+    if (isSickLeave && !file) {
+      toast.error('Medical Certificate is required for Sick Leave')
+      return
+    }
+
+    let attachment_url = undefined
+    if (file) {
+      setUploading(true)
+      try {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+        const { error: uploadErr } = await supabase.storage
+          .from('leave_attachments')
+          .upload(`public/${fileName}`, file)
+        
+        if (uploadErr) throw uploadErr
+
+        const { data: publicUrlData } = supabase.storage
+          .from('leave_attachments')
+          .getPublicUrl(`public/${fileName}`)
+          
+        attachment_url = publicUrlData.publicUrl
+      } catch (err: any) {
+        toast.error('Failed to upload medical certificate', { description: err.message })
+        setUploading(false)
+        return
+      }
+      setUploading(false)
+    }
+
     try {
-      await mutateAsync({ ...form, total_days: days, status: 'pending' })
+      await mutateAsync({ ...form, total_days: days, status: 'pending', attachment_url })
       toast.success('Leave request submitted!', { description: 'Your request is pending approval.' })
       setOpen(false)
+      setFile(null)
     } catch (err: any) {
       toast.error('Failed to submit request', { description: err.message })
     }
@@ -180,6 +215,7 @@ function RequestLeaveDialog() {
                 type="file"
                 required
                 accept="image/*,.pdf"
+                onChange={e => setFile(e.target.files?.[0] || null)}
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground file:border-0 file:bg-primary file:text-primary-foreground file:text-sm file:font-medium file:mr-4 file:px-3 file:py-1 file:rounded-md shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
               <p className="text-[10px] text-muted-foreground">Required for Sick Leave (PDF, JPG, PNG)</p>
@@ -196,8 +232,8 @@ function RequestLeaveDialog() {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={isPending || !form.leave_type_id || !form.start_date || !form.end_date}>
-              {isPending ? <><Loader2 className="mr-2 size-4 animate-spin" />Submitting...</> : 'Submit Request'}
+            <Button type="submit" disabled={isPending || uploading || !form.leave_type_id || !form.start_date || !form.end_date}>
+              {(isPending || uploading) ? <><Loader2 className="mr-2 size-4 animate-spin" />Submitting...</> : 'Submit Request'}
             </Button>
           </div>
         </form>
@@ -253,6 +289,17 @@ function LeaveCard({ leave, onAction }: { leave: LeaveRequest; onAction?: (id: s
 
         {leave.reason && (
           <p className="mt-3 text-xs text-muted-foreground line-clamp-2">"{leave.reason}"</p>
+        )}
+
+        {leave.attachment_url && (
+          <div className="mt-3">
+            <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" asChild>
+              <a href={leave.attachment_url} target="_blank" rel="noopener noreferrer">
+                <Download className="size-3" />
+                View Medical Certificate
+              </a>
+            </Button>
+          </div>
         )}
 
         {leave.status === 'pending' && onAction && can.approveLeaves() && (
