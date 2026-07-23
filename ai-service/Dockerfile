@@ -11,6 +11,10 @@ RUN apt-get update && apt-get install -y \
 
 # Install python packages
 COPY requirements.txt .
+
+# CRITICAL FIX: Limit CMake to 1 core so it doesn't run out of memory compiling dlib!
+ENV CMAKE_BUILD_PARALLEL_LEVEL=1
+# Also restrict pip from caching massive build files
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
