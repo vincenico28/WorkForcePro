@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Building2, Bell, Shield, Palette, Globe, Key, Save, User, Eye, EyeOff, Loader2, Camera } from 'lucide-react'
+import { Building2, Bell, Shield, Palette, Globe, Key, Save, User, Eye, EyeOff, Loader2, Camera, MapPin } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,6 +15,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ModeToggle } from '@/components/mode-toggle'
 import { toast } from 'sonner'
 import { FaceRegistration } from '@/components/face-recognition/FaceRegistration'
+import { GeofenceSettings } from '@/components/settings/GeofenceSettings'
+
 export default function SettingsPage() {
   const { employee, updateProfile, updatePassword } = useAuthStore()
   const { can } = usePermissions()
@@ -94,6 +96,9 @@ export default function SettingsPage() {
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="profile" className="gap-1.5"><User className="size-3.5" />Profile</TabsTrigger>
           <TabsTrigger value="face-id" className="gap-1.5"><Camera className="size-3.5" />Face ID</TabsTrigger>
+          {can.manageSettings() && (
+            <TabsTrigger value="geofence" className="gap-1.5"><MapPin className="size-3.5" />Geofence</TabsTrigger>
+          )}
           <TabsTrigger value="notifications" className="gap-1.5"><Bell className="size-3.5" />Notifications</TabsTrigger>
           <TabsTrigger value="security" className="gap-1.5"><Shield className="size-3.5" />Security</TabsTrigger>
           <TabsTrigger value="organization" className="gap-1.5"><Building2 className="size-3.5" />Organization</TabsTrigger>
@@ -184,6 +189,13 @@ export default function SettingsPage() {
         <TabsContent value="face-id">
           <FaceRegistration />
         </TabsContent>
+
+        {/* Geofence */}
+        {can.manageSettings() && (
+          <TabsContent value="geofence">
+            <GeofenceSettings />
+          </TabsContent>
+        )}
 
         {/* Notifications */}
         <TabsContent value="notifications">

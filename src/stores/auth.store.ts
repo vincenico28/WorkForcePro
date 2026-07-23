@@ -63,24 +63,63 @@ export const useAuthStore = create<AuthState>()(
             .maybeSingle()
 
           if (!emp) {
-            const firstName = data.user.user_metadata?.first_name || data.user.email?.split('@')[0] || 'User'
-            const lastName = data.user.user_metadata?.last_name || ''
-            
-            const { data: newEmp, error: insertError } = await supabase
+            // First check if there's a seeded employee with this email
+            const { data: existingSeeded } = await supabase
               .from('employees')
-              .insert({
-                user_id: data.user.id,
-                org_id: ORG_ID,
-                first_name: firstName,
-                last_name: lastName,
-                email: data.user.email!,
-                role: 'employee',
-              })
-              .select('*, departments(*)')
-              .single()
+              .select('*')
+              .eq('email', data.user.email)
+              .is('user_id', null)
+              .maybeSingle()
 
-            if (insertError) return { error: insertError.message }
-            emp = newEmp
+            if (existingSeeded) {
+              const { data: updatedEmp } = await supabase
+                .from('employees')
+                .update({ user_id: data.user.id })
+                .eq('id', existingSeeded.id)
+                .select('*, departments(*)')
+                .single()
+              if (updatedEmp) emp = updatedEmp
+            }
+
+            // If there's an existing employee linked but somehow maybeSingle failed earlier (duplicates),
+            // let's grab the admin one if it exists
+            if (!emp) {
+                const { data: allUserEmps } = await supabase
+                  .from('employees')
+                  .select('*, departments(*)')
+                  .eq('email', data.user.email)
+                
+                if (allUserEmps && allUserEmps.length > 0) {
+                    // Prefer super_admin or admin
+                    emp = allUserEmps.find(e => e.role === 'super_admin' || e.role === 'admin') || allUserEmps[0]
+                    // Fix the user_id if it's null
+                    if (emp && emp.user_id !== data.user.id) {
+                        await supabase.from('employees').update({ user_id: data.user.id }).eq('id', emp.id)
+                    }
+                }
+            }
+
+            // If still no employee found, create a brand new one
+            if (!emp) {
+              const firstName = data.user.user_metadata?.first_name || data.user.email?.split('@')[0] || 'User'
+              const lastName = data.user.user_metadata?.last_name || ''
+              
+              const { data: newEmp, error: insertError } = await supabase
+                .from('employees')
+                .insert({
+                  user_id: data.user.id,
+                  org_id: ORG_ID,
+                  first_name: firstName,
+                  last_name: lastName,
+                  email: data.user.email!,
+                  role: 'employee',
+                })
+                .select('*, departments(*)')
+                .single()
+
+              if (insertError) return { error: insertError.message }
+              emp = newEmp
+            }
           }
 
           set({

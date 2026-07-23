@@ -14,10 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { WebcamCapture } from '@/components/face-recognition/WebcamCapture'
+import { LocationMapDialog } from '@/components/attendance/LocationMapDialog'
+import { DailyAttendanceMap } from '@/components/attendance/DailyAttendanceMap'
 import { playSuccessSound, playErrorSound } from '@/utils/audio'
 import { toast } from 'sonner'
 import { startOfMonth, endOfMonth, isSameDay } from 'date-fns'
 import { downloadCSV } from '@/utils/export'
+import { calculateDistance } from '@/utils/geo'
+import { supabase, ORG_ID } from '@/lib/supabase'
 
 const ATT_STATUS_CONFIG: Record<string, { label: string; className: string; icon: React.ElementType }> = {
   present: { label: 'Present', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400', icon: CheckCircle },
@@ -55,14 +59,58 @@ function ClockWidget() {
   }
 
   const executeClock = async () => {
+    let location: { lat: number; lng: number } | undefined;
+    
+    try {
+      if ('geolocation' in navigator) {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { 
+            enableHighAccuracy: true, 
+            timeout: 10000,
+            maximumAge: 0
+          });
+        });
+        location = { lat: position.coords.latitude, lng: position.coords.longitude };
+        
+        // Geofencing verification
+        const { data: org } = await supabase
+          .from('organizations')
+          .select('geofence_settings')
+          .eq('id', ORG_ID)
+          .single();
+          
+        let officeLat = import.meta.env.VITE_OFFICE_LAT ? parseFloat(import.meta.env.VITE_OFFICE_LAT) : null;
+        let officeLng = import.meta.env.VITE_OFFICE_LNG ? parseFloat(import.meta.env.VITE_OFFICE_LNG) : null;
+        let allowedRadius = import.meta.env.VITE_ALLOWED_RADIUS_METERS ? parseInt(import.meta.env.VITE_ALLOWED_RADIUS_METERS) : 100;
+
+        if (org?.geofence_settings) {
+          const settings = org.geofence_settings as { lat: number; lng: number; radius: number };
+          officeLat = settings.lat;
+          officeLng = settings.lng;
+          allowedRadius = settings.radius;
+        }
+
+        if (officeLat !== null && officeLng !== null && !isNaN(officeLat) && !isNaN(officeLng)) {
+          const distance = calculateDistance(location.lat, location.lng, officeLat, officeLng);
+          if (distance > allowedRadius) {
+            toast.error(`Geofence Error: You are ${Math.round(distance)}m away from the office. You must be within ${allowedRadius}m to clock in/out.`);
+            setShowFaceVerification(false);
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Could not get geolocation", err);
+    }
+
     if (!isIn) {
       const t = toast.loading('Clocking in...')
-      await clockIn.mutateAsync(employee!.id)
+      await clockIn.mutateAsync({ employeeId: employee!.id, location })
       toast.dismiss(t)
       toast.success('Clocked in!', { description: `${format(new Date(), 'h:mm a')}` })
     } else {
       const t = toast.loading('Clocking out...')
-      await clockOut.mutateAsync({ employeeId: employee!.id, attendanceId: todayAtt!.id })
+      await clockOut.mutateAsync({ employeeId: employee!.id, attendanceId: todayAtt!.id, location })
       toast.dismiss(t)
       toast.success('Clocked out!', { description: `${format(new Date(), 'h:mm a')}` })
     }
@@ -353,6 +401,12 @@ export default function AttendancePage() {
                         {record.total_hours && (
                           <span className="font-medium">{record.total_hours}h</span>
                         )}
+                        {((record.location as any)?.clockIn || (record.location as any)?.clockOut) && (
+                          <LocationMapDialog
+                            clockInLocation={(record.location as any)?.clockIn}
+                            clockOutLocation={(record.location as any)?.clockOut}
+                          />
+                        )}
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cfg?.className ?? ''}`}>
                           {cfg?.label ?? record.status}
                         </span>
@@ -445,6 +499,10 @@ export default function AttendancePage() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid gap-6">
+        <DailyAttendanceMap records={filteredAttendance || []} />
       </div>
     </div>
   )

@@ -23,7 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -478,6 +478,7 @@ export default function EmployeesPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Add New Employee</DialogTitle>
+            <DialogDescription>Fill out the details below to add a new employee to the organization.</DialogDescription>
           </DialogHeader>
           <p className="text-xs text-muted-foreground -mt-1">
             This will create a login account for the employee.

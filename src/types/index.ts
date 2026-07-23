@@ -9,6 +9,11 @@ export interface Organization {
   timezone: string
   subscription_plan: string
   employee_count: number
+  geofence_settings?: {
+    lat: number
+    lng: number
+    radius: number
+  } | null
   created_at: string
 }
 
