@@ -65,28 +65,5 @@ The relational PostgreSQL database is designed around a multi-tenant architectur
 
 ---
 
-## 🚀 Setup & Installation
 
-### 1. Environment Variables
-You must configure the following variables in your `.env` (or Vercel dashboard):
-```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_GEMINI_API_KEY=your_gemini_api_key
-VITE_API_BASE_URL=your_deployed_ai_service_url
-```
-
-### 2. Run the Web Application
-```bash
-npm install
-npm run dev
-```
-
-### 3. Run the AI Microservice (Local)
-```bash
-cd ai-service
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-pip install -r requirements.txt
-python app.py
 ```
