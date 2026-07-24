@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
-import { Save, Loader2, MapPin, LocateFixed } from 'lucide-react'
+import { Save, Loader2, MapPin, LocateFixed, Maximize, Minimize } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase, ORG_ID } from '@/lib/supabase'
 import L from 'leaflet'
@@ -48,6 +48,7 @@ export function GeofenceSettings() {
   const [saving, setSaving] = useState(false)
   const [location, setLocation] = useState<GeofenceData>({ lat: DEFAULT_LAT, lng: DEFAULT_LNG, radius: DEFAULT_RADIUS })
   const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const mapRef = useRef<L.Map | null>(null)
 
   useEffect(() => {
@@ -88,6 +89,18 @@ export function GeofenceSettings() {
       mapRef.current.setView([location.lat, location.lng], mapRef.current.getZoom())
     }
   }, [loading, location.lat, location.lng])
+
+  // Handle Escape key to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false)
+        setTimeout(() => mapRef.current?.invalidateSize(), 300)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isFullscreen])
 
   const handleSave = async () => {
     setSaving(true)
@@ -165,7 +178,7 @@ export function GeofenceSettings() {
             </Button>
           )}
         </div>
-        <div className="h-[400px] w-full rounded-xl overflow-hidden border border-border relative z-0">
+        <div className={isFullscreen ? "fixed inset-0 z-[9999] bg-background flex flex-col" : "h-[400px] w-full rounded-xl overflow-hidden border border-border relative z-0"}>
           <MapContainer
             center={[location.lat, location.lng]}
             zoom={16}
@@ -202,8 +215,25 @@ export function GeofenceSettings() {
               />
             )}
           </MapContainer>
-          <div className="absolute top-2 right-2 z-[1000] bg-background/80 backdrop-blur-sm p-2 rounded-md border border-border shadow-sm text-xs pointer-events-none">
-            Click map or drag pin to move
+          <div className="absolute top-2 right-2 z-[10000] flex gap-2">
+            <div className="bg-background/80 backdrop-blur-sm p-2 rounded-md border border-border shadow-sm text-xs pointer-events-none flex items-center">
+              Click map or drag pin to move
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 bg-background/80 backdrop-blur-sm pointer-events-auto shadow-sm"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setIsFullscreen(!isFullscreen)
+                // Invalidate size after transition
+                setTimeout(() => mapRef.current?.invalidateSize(), 300)
+              }}
+            >
+              {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
 
