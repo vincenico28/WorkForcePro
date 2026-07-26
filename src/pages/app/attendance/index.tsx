@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { format, subDays } from 'date-fns'
-import { Clock, CheckCircle, XCircle, AlertCircle, TimerReset, MapPin, Download } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, AlertCircle, TimerReset, MapPin, Download, Loader2, Camera } from 'lucide-react'
 import { useAttendance, useAttendanceRange, useClockIn, useClockOut, useTodayAttendance } from '@/hooks/use-attendance'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -48,6 +48,61 @@ function ClockWidget() {
 
   const [showFaceVerification, setShowFaceVerification] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  
+  const [permissionsGranted, setPermissionsGranted] = useState<boolean | null>(null)
+  const [checkingPermissions, setCheckingPermissions] = useState(false)
+
+  // Silently check if permissions are already granted on mount
+  useEffect(() => {
+    const checkSilent = async () => {
+      try {
+        const geoStatus = await navigator.permissions.query({ name: 'geolocation' })
+        // @ts-ignore - 'camera' is valid in many browsers but might not be in TS standard types
+        const camStatus = await navigator.permissions.query({ name: 'camera' })
+        
+        if (geoStatus.state === 'granted' && camStatus.state === 'granted') {
+          setPermissionsGranted(true)
+        }
+      } catch (e) {
+        // Ignore errors if browser doesn't support the permissions API fully
+      }
+    }
+    checkSilent()
+  }, [])
+
+  const requestPermissions = async () => {
+    setCheckingPermissions(true)
+    try {
+      // 1. Request Camera
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not supported in this browser')
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      // Stop tracks immediately since we just wanted to grant the permission
+      stream.getTracks().forEach(track => track.stop())
+
+      // 2. Request Geolocation (Exact Location)
+      if (!navigator.geolocation) {
+        throw new Error('Geolocation API not supported in this browser')
+      }
+      await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        })
+      })
+
+      setPermissionsGranted(true)
+      toast.success('Permissions granted successfully!')
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Permissions required', { description: 'You must allow camera and exact location access to use the attendance system.' })
+      setPermissionsGranted(false)
+    } finally {
+      setCheckingPermissions(false)
+    }
+  }
 
   const handleClockClick = () => {
     if (!employee?.id) { toast.error('No employee profile linked'); return }
@@ -70,6 +125,14 @@ function ClockWidget() {
             maximumAge: 0
           });
         });
+        
+        // Strict GPS Validation
+        if (position.coords.accuracy > 60) {
+          toast.error(`GPS Error`, { description: `Signal is too weak (Accuracy: ${Math.round(position.coords.accuracy)}m). Please step outside or near a window for a valid GPS lock.` })
+          setShowFaceVerification(false)
+          return
+        }
+        
         location = { lat: position.coords.latitude, lng: position.coords.longitude };
         
         // Geofencing verification
@@ -188,7 +251,7 @@ function ClockWidget() {
                   Shift complete · {todayAtt?.total_hours}h
                 </span>
               </div>
-            ) : (
+            ) : permissionsGranted ? (
               <Button
                 size="lg"
                 onClick={handleClockClick}
@@ -197,6 +260,24 @@ function ClockWidget() {
               >
                 <Clock className="mr-2 size-5" />
                 {isIn ? 'Clock Out' : 'Clock In'}
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                onClick={requestPermissions}
+                disabled={checkingPermissions}
+                variant="secondary"
+                className="rounded-full px-8 gap-2 bg-sidebar-primary/20 text-sidebar-primary hover:bg-sidebar-primary/30 border border-sidebar-primary/30"
+              >
+                {checkingPermissions ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="size-4" />
+                    <MapPin className="size-4" />
+                  </>
+                )}
+                Grant Access to Clock In
               </Button>
             )}
           </div>

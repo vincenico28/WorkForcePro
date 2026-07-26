@@ -30,9 +30,10 @@ def extract_face_encoding(image_bytes: bytes) -> list[float]:
         
     return encodings[0].tolist()
 
-def compare_faces(known_encoding: list[float], unknown_encoding: list[float], tolerance: float = 0.6) -> bool:
+def compare_faces(known_encoding: list[float], unknown_encoding: list[float], tolerance: float = 0.45) -> bool:
     """
     Compares two face encodings to see if they match.
+    Tolerance is lowered to 0.45 to prevent false positives and spoofing.
     """
     if not known_encoding or not unknown_encoding:
         return False
