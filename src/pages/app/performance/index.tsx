@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Star, TrendingUp, Target, Award, Plus, ChevronRight,
-  Users, CheckCircle, Clock, BarChart3, Loader2,
+  Users, CheckCircle, Clock, BarChart3, Loader2, Brain, Sparkles
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -31,6 +31,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
 import { toast } from 'sonner'
 import type { PerformanceReview } from '@/types'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 const chartConfig = {
   avg: { label: 'Avg Rating', color: 'var(--chart-1)' },
@@ -71,6 +72,126 @@ function RatingInput({ label, value, onChange }: { label: string; value: number;
         className="w-full accent-primary"
       />
     </div>
+  )
+}
+
+function formatMessage(text: string) {
+  return text.split('\n').map((line, i) => {
+    if (line.startsWith('**') && line.endsWith('**')) {
+      return <p key={i} className="font-semibold">{line.replace(/\*\*/g, '')}</p>
+    }
+    if (line.startsWith('**')) {
+      return <p key={i} className="text-sm">{line.split('**').map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part)}</p>
+    }
+    if (line.startsWith('#')) {
+      return <p key={i} className="font-bold text-lg mt-2 mb-1">{line.replace(/#/g, '')}</p>
+    }
+    if (line.startsWith('* ')) {
+      return <li key={i} className="text-sm ml-4 list-disc">{line.substring(2)}</li>
+    }
+    if (line === '') return <div key={i} className="h-1" />
+    return <p key={i} className="text-sm leading-relaxed">{line}</p>
+  })
+}
+
+function AIPerformanceInsights({ reviews }: { reviews: PerformanceReview[] | undefined }) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [insights, setInsights] = useState('')
+  const [error, setError] = useState('')
+
+  const generateInsights = async () => {
+    if (!reviews || reviews.length === 0) {
+      toast.error('Not enough data to generate insights')
+      return
+    }
+    
+    setLoading(true)
+    setError('')
+    setInsights('')
+    
+    // Anonymize and bundle data
+    const data = reviews.map(r => ({
+      overall: r.overall_rating,
+      communication: r.communication_rating,
+      teamwork: r.teamwork_rating,
+      technical: r.technical_rating,
+      goals: r.goals_met,
+      status: r.status
+    })).filter(r => r.overall !== undefined)
+
+    const prompt = `You are an expert HR Analyst. Based on the following anonymous performance review scores for our workforce, provide a brief executive summary. Highlight the key strengths, weaknesses, and recommend specific training programs.
+    Data: ${JSON.stringify(data)}
+    Format your response in Markdown using bullet points and short paragraphs.`
+
+    try {
+      const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '')
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' })
+      
+      const result = await model.generateContentStream(prompt)
+
+      for await (const chunk of result.stream) {
+        setInsights(prev => prev + chunk.text())
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect to Google Gemini. Please check your API key.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button 
+        variant="outline" 
+        className="gap-1.5 shrink-0 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800 border-violet-200 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/20" 
+        onClick={() => { setOpen(true); if (!insights && !loading) generateInsights(); }}
+      >
+        <Sparkles className="size-4" /> AI Insights
+      </Button>
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-600">
+              <Brain className="size-4 text-white" />
+            </div>
+            AI Performance Insights
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-y-auto p-1 mt-4">
+          {error ? (
+            <div className="rounded-lg bg-red-50 p-4 text-red-600 dark:bg-red-950/50 dark:text-red-400 border border-red-200 dark:border-red-900/50 text-sm">
+              <p className="font-semibold mb-1">Connection Error</p>
+              <p>{error}</p>
+              <div className="mt-4 flex justify-end">
+                <Button variant="outline" size="sm" onClick={generateInsights}>Retry Connection</Button>
+              </div>
+            </div>
+          ) : insights ? (
+            <div className="space-y-1 text-sm bg-muted/30 p-4 rounded-lg border border-border/50">
+              {formatMessage(insights)}
+            </div>
+          ) : loading ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <div className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="size-2 rounded-full bg-violet-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground animate-pulse">Running Gemini AI Analysis...</p>
+            </div>
+          ) : null}
+        </div>
+        
+        <div className="mt-4 pt-4 border-t flex justify-between items-center text-xs text-muted-foreground">
+          <span>Powered by Ollama</span>
+          <Button variant="ghost" size="sm" onClick={generateInsights} disabled={loading}>
+            Regenerate
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -165,9 +286,12 @@ export default function PerformancePage() {
           <p className="text-sm text-muted-foreground">Track employee performance, goals, and reviews</p>
         </div>
         {can.managePerformance() && (
-          <Button className="gap-1.5 shrink-0" onClick={() => setNewReviewOpen(true)}>
-            <Plus className="size-4" />New Review
-          </Button>
+          <div className="flex items-center gap-2">
+            <AIPerformanceInsights reviews={reviews} />
+            <Button className="gap-1.5 shrink-0" onClick={() => setNewReviewOpen(true)}>
+              <Plus className="size-4" />New Review
+            </Button>
+          </div>
         )}
       </div>
 

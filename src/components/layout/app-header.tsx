@@ -19,7 +19,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotifications, useMarkNotificationsRead } from '@/hooks/use-misc'
-import { AIAssistantPanel } from '@/components/shared/ai-assistant'
 import { CommandPalette } from '@/components/shared/command-palette'
 
 const ROUTE_LABELS: Record<string, string[]> = {
@@ -63,7 +62,7 @@ export function AppHeader() {
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur-sm">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border/50 glass z-50 sticky top-0 px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
 
@@ -97,22 +96,6 @@ export function AppHeader() {
             ⌘K
           </kbd>
         </Button>
-
-        {/* AI Assistant */}
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8 text-muted-foreground">
-              <Brain className="size-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent className="w-full sm:max-w-[420px] p-0">
-            <SheetHeader className="sr-only">
-              <SheetTitle>AI Assistant</SheetTitle>
-              <SheetDescription>Chat with the HR AI Assistant</SheetDescription>
-            </SheetHeader>
-            <AIAssistantPanel />
-          </SheetContent>
-        </Sheet>
 
         {/* Notifications */}
         <Sheet>

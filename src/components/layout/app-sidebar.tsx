@@ -97,17 +97,17 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar collapsible="icon" className="border-sidebar-border">
+    <Sidebar collapsible="icon" className="border-sidebar-border glass shadow-lg transition-all duration-300">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="hover:bg-sidebar-accent">
+            <SidebarMenuButton size="lg" asChild className="hover:bg-sidebar-accent hover:scale-[1.02] transition-transform duration-200">
               <Link to="/app/dashboard">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg overflow-hidden">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg overflow-hidden shadow-sm">
                   <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="truncate text-sm font-semibold text-sidebar-foreground">WorkForce Pro</span>
+                  <span className="truncate text-sm font-semibold text-sidebar-foreground font-heading">WorkForce Pro</span>
                   <span className="truncate text-xs text-sidebar-foreground/50">Nexus Technologies</span>
                 </div>
               </Link>

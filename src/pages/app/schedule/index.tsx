@@ -3,7 +3,8 @@ import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isToday, isWeekend, addMonths, subMonths,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus, Loader2, X, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Loader2, X, Search, Sparkles } from 'lucide-react'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule } from '@/hooks/use-schedules'
@@ -27,6 +28,10 @@ export default function SchedulePage() {
   const [selectedDepartment, setSelectedDepartment] = useState('all')
   const [assignOpen, setAssignOpen] = useState(false)
   const [assignForm, setAssignForm] = useState({ employee_id: '', shift_id: '', date: format(new Date(), 'yyyy-MM-dd') })
+
+  const [aiOpen, setAiOpen] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [aiResult, setAiResult] = useState<string | null>(null)
 
   const { data: employees, isLoading: empLoading } = useEmployees()
   const { data: shifts, isLoading: shiftsLoading } = useShifts()
@@ -109,6 +114,42 @@ export default function SchedulePage() {
     }
   }
 
+  const handleAnalyzeRoster = async () => {
+    setAiOpen(true)
+    if (aiResult) return
+
+    setIsAnalyzing(true)
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not defined')
+      
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" })
+
+      // Build a minimal summary of the roster to send to AI
+      const rosterSummary = employees?.map(emp => {
+        const empSchedules = schedules?.filter(s => s.employee_id === emp.id) || []
+        return `${emp.first_name} ${emp.last_name} (${emp.position || 'No Role'}): ${empSchedules.length} shifts scheduled.`
+      }).join('\n')
+
+      const prompt = `You are an expert HR Workforce Scheduler. 
+Analyze the following high-level roster summary for the current month.
+Point out potential coverage risks, give a quick roster health score out of 100, and highlight if anyone seems overworked.
+
+Roster Summary:
+${rosterSummary}
+
+Keep the response concise, formatted in markdown, and highly professional.`
+
+      const result = await model.generateContent(prompt)
+      setAiResult(result.response.text())
+    } catch (err: any) {
+      setAiResult('Failed to analyze roster: ' + err.message)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -116,11 +157,18 @@ export default function SchedulePage() {
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
           <p className="text-sm text-muted-foreground">Manage shifts and employee schedules</p>
         </div>
-        {can.manageSchedule() && (
-          <Button className="gap-1.5 shrink-0" onClick={() => setAssignOpen(true)}>
-            <Plus className="size-4" />Assign Shift
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {can.manageSchedule() && (
+            <>
+              <Button variant="outline" className="gap-1.5 shrink-0 bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 hover:text-violet-700" onClick={handleAnalyzeRoster}>
+                <Sparkles className="size-4" /> AI Health Check
+              </Button>
+              <Button className="gap-1.5 shrink-0" onClick={() => setAssignOpen(true)}>
+                <Plus className="size-4" />Assign Shift
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Shift legend */}
@@ -404,6 +452,29 @@ export default function SchedulePage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Analyzer Dialog */}
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-violet-600">
+              <Sparkles className="size-5" /> AI Roster Analysis
+            </DialogTitle>
+          </DialogHeader>
+          <div className="min-h-[200px] max-h-[60vh] overflow-y-auto pr-2 flex flex-col pt-4">
+            {isAnalyzing ? (
+              <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                <Loader2 className="size-8 animate-spin text-violet-500" />
+                <p className="text-sm font-medium text-muted-foreground animate-pulse">Analyzing schedule data...</p>
+              </div>
+            ) : (
+              <div className="prose prose-sm dark:prose-invert max-w-none text-foreground space-y-3 leading-relaxed whitespace-pre-wrap">
+                {aiResult}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

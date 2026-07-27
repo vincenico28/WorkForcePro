@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isWeekend, parseISO } from 'date-fns'
 import {
   Clock, CheckCircle, XCircle, Plus, ChevronLeft, ChevronRight,
-  Download, TrendingUp, TrendingDown, Timer, UserCheck, Edit2, Trash2,
+  Download, TrendingUp, TrendingDown, Timer, UserCheck, Edit2, Trash2, Wand2,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -14,6 +14,7 @@ import {
   useDeleteTimesheetEntry,
   useApproveTimesheetEntry,
   useBulkApproveTimesheetEntries,
+  useBulkCreateTimesheetEntries,
   getWeekRange,
 } from '@/hooks/use-timesheets'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -26,6 +27,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -293,6 +295,120 @@ function AddTimeEntryDialog({
   )
 }
 
+function WeeklyCalendarView({ 
+  entries, 
+  weekDays 
+}: { 
+  entries: TimesheetEntry[], 
+  weekDays: Date[] 
+}) {
+  const hours = Array.from({ length: 13 }, (_, i) => i + 7) // 7 AM to 7 PM
+
+  const getEntryStyle = (entry: TimesheetEntry) => {
+    const [startH, startM] = entry.start_time.split(':').map(Number)
+    const [endH, endM] = entry.end_time.split(':').map(Number)
+    
+    // Calculate start position (relative to 7 AM)
+    const startOffsetMinutes = (startH - 7) * 60 + startM
+    const top = `${(startOffsetMinutes / (12 * 60)) * 100}%`
+    
+    // Calculate duration
+    let durationMins = (endH - startH) * 60 + (endM - startM)
+    if (durationMins < 0) durationMins += 24 * 60 // overnight
+    const height = `${(durationMins / (12 * 60)) * 100}%`
+
+    return { top, height }
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+      {/* Calendar Header */}
+      <div className="grid grid-cols-[60px_1fr] border-b border-border bg-muted/20">
+        <div className="p-3 border-r border-border text-center flex flex-col justify-end">
+          <Clock className="size-4 text-muted-foreground mx-auto" />
+        </div>
+        <div className="grid grid-cols-7 divide-x divide-border">
+          {weekDays.map(day => (
+            <div key={day.toISOString()} className={`p-3 text-center ${isToday(day) ? 'bg-primary/5' : ''}`}>
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{format(day, 'EEE')}</div>
+              <div className={`text-lg font-bold mt-0.5 ${isToday(day) ? 'text-primary' : 'text-foreground'}`}>{format(day, 'd')}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Calendar Body */}
+      <div className="grid grid-cols-[60px_1fr] bg-card relative min-h-[600px] overflow-y-auto custom-scrollbar">
+        {/* Time Labels */}
+        <div className="border-r border-border bg-muted/10 relative">
+          {hours.map(hour => (
+            <div key={hour} className="absolute w-full pr-2 text-right text-[10px] text-muted-foreground font-medium -translate-y-2" style={{ top: `${((hour - 7) / 12) * 100}%` }}>
+              {hour > 12 ? `${hour - 12} PM` : hour === 12 ? '12 PM' : `${hour} AM`}
+            </div>
+          ))}
+        </div>
+
+        {/* Grid and Entries */}
+        <div className="grid grid-cols-7 divide-x divide-border relative">
+          {/* Horizontal Grid Lines */}
+          <div className="absolute inset-0 pointer-events-none">
+            {hours.map(hour => (
+              <div key={hour} className="absolute w-full border-t border-border/50" style={{ top: `${((hour - 7) / 12) * 100}%` }} />
+            ))}
+          </div>
+
+          {/* Daily Columns */}
+          {weekDays.map(day => {
+            const dayStr = format(day, 'yyyy-MM-dd')
+            const dayEntries = entries.filter(e => e.date === dayStr)
+            
+            return (
+              <div key={dayStr} className={`relative ${isWeekend(day) ? 'bg-muted/10' : ''}`}>
+                {dayEntries.map(entry => (
+                  <div
+                    key={entry.id}
+                    className="absolute left-1 right-1 rounded-md p-1.5 overflow-hidden transition-all hover:ring-2 hover:ring-primary/50 shadow-sm border"
+                    style={{
+                      ...getEntryStyle(entry),
+                      backgroundColor: entry.is_approved ? 'rgba(16, 185, 129, 0.1)' : 'rgba(124, 58, 237, 0.1)',
+                      borderColor: entry.is_approved ? 'rgba(16, 185, 129, 0.3)' : 'rgba(124, 58, 237, 0.3)',
+                      zIndex: 10
+                    }}
+                  >
+                    <div className="flex flex-col h-full">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className={`text-[10px] font-bold ${entry.is_approved ? 'text-emerald-700 dark:text-emerald-400' : 'text-violet-700 dark:text-violet-400'} truncate`}>
+                          {entry.start_time.substring(0,5)} - {entry.end_time.substring(0,5)}
+                        </span>
+                        {entry.is_approved ? (
+                          <CheckCircle className="size-3 text-emerald-500 shrink-0" />
+                        ) : (
+                          <Timer className="size-3 text-violet-500 shrink-0" />
+                        )}
+                      </div>
+                      
+                      <div className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                        <UserCheck className="size-3" />
+                        <span className="truncate">{entry.employees?.first_name} {entry.employees?.last_name?.charAt(0)}.</span>
+                      </div>
+                      
+                      {entry.break_minutes > 0 && (
+                        <div className="mt-auto text-[9px] text-muted-foreground/80 font-medium">
+                          {entry.break_minutes}m break
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TimesheetPage() {
   const { employee } = useAuthStore()
   const { can } = usePermissions()
@@ -300,6 +416,7 @@ export default function TimesheetPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string | undefined>(undefined)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [editingEntry, setEditingEntry] = useState<TimesheetEntry | null>(null)
+  const [activeTab, setActiveTab] = useState('grid')
 
   const { startDate, endDate } = useMemo(() => ({
     startDate: format(currentWeekStart, 'yyyy-MM-dd'),
@@ -310,9 +427,13 @@ export default function TimesheetPage() {
   const { data: entries, isLoading } = useTimesheetEntries(selectedEmployee, startDate, endDate)
   const { mutateAsync: approveEntry } = useApproveTimesheetEntry()
   const { mutateAsync: bulkApprove } = useBulkApproveTimesheetEntries()
+  const { mutateAsync: bulkCreate } = useBulkCreateTimesheetEntries()
   const { mutateAsync: deleteEntry } = useDeleteTimesheetEntry()
 
-  const weekDays = eachDayOfInterval({ start: currentWeekStart, end: endOfWeek(currentWeekStart, { weekStartsOn: 1 }) })
+  const weekDays = useMemo(() => eachDayOfInterval({
+    start: currentWeekStart,
+    end: endOfWeek(currentWeekStart, { weekStartsOn: 1 })
+  }), [currentWeekStart])
 
   // Summary stats
   const stats = useMemo(() => {
@@ -356,6 +477,62 @@ export default function TimesheetPage() {
     }
   }
 
+  const handleAutoFillWeek = async () => {
+    if (!employee?.id) return
+    
+    // Only look at Mon-Fri
+    const workDays = weekDays.filter(d => !isWeekend(d))
+    
+    // Determine which employees to auto-fill
+    let targetEmployees: string[] = []
+    
+    if (can.isSupervisor() && !selectedEmployee) {
+      if (!employees) return
+      // Only auto-fill for employees in the same org to avoid RLS errors,
+      // as the timesheet insert policy only permits same-org insertions.
+      targetEmployees = employees
+        .filter(e => e.org_id === employee.org_id)
+        .map(e => e.id)
+    } else {
+      targetEmployees = [selectedEmployee || employee.id]
+    }
+    
+    if (targetEmployees.length === 0) return
+
+    const newEntries: Partial<TimesheetEntry>[] = []
+    
+    targetEmployees.forEach(empId => {
+      // Find missing days for this specific employee
+      const existingDates = new Set(entries?.filter(e => e.employee_id === empId).map(e => e.date) || [])
+      const missingDays = workDays.filter(d => !existingDates.has(format(d, 'yyyy-MM-dd')))
+      
+      missingDays.forEach(d => {
+        newEntries.push({
+          employee_id: empId,
+          date: format(d, 'yyyy-MM-dd'),
+          start_time: '09:00',
+          end_time: '17:00',
+          break_minutes: 60,
+          overtime_hours: 0,
+          source: 'manual',
+          notes: 'Auto-filled standard schedule'
+        })
+      })
+    })
+
+    if (newEntries.length === 0) {
+      toast.error('All workdays this week already have entries')
+      return
+    }
+
+    try {
+      await bulkCreate(newEntries)
+      toast.success(`Auto-filled ${newEntries.length} missing days across ${targetEmployees.length} employees`)
+    } catch (err: any) {
+      toast.error('Failed to auto-fill week', { description: err.message })
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -365,6 +542,10 @@ export default function TimesheetPage() {
           <p className="text-sm text-muted-foreground">Track and approve work hours</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleAutoFillWeek} className="gap-1.5 border-violet-200 hover:bg-violet-50 hover:text-violet-700 dark:border-violet-800/50 dark:hover:bg-violet-900/30 dark:hover:text-violet-300">
+            <Wand2 className="size-4" />
+            Auto-fill Week
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5">
             <Download className="size-4" />
             Export
@@ -451,12 +632,25 @@ export default function TimesheetPage() {
       )}
 
       {/* Timesheet grid */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Weekly Timesheet</CardTitle>
-          <CardDescription>Hours logged per day</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold tracking-tight">Weekly Timesheet</h2>
+            <p className="text-sm text-muted-foreground">Hours logged per day</p>
+          </div>
+          <TabsList>
+            <TabsTrigger value="grid">Table View</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="grid" className="m-0 space-y-4">
+          <Card>
+            <CardHeader className="pb-3 hidden">
+              <CardTitle className="text-base">Weekly Timesheet</CardTitle>
+              <CardDescription>Hours logged per day</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
           {isLoading ? (
             <div className="p-4 space-y-2">
               {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
@@ -548,10 +742,16 @@ export default function TimesheetPage() {
                   })
                 )}
               </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="calendar" className="m-0">
+        <WeeklyCalendarView entries={entries || []} weekDays={weekDays} />
+      </TabsContent>
+    </Tabs>
 
       {/* Detailed entries list */}
       <Card>

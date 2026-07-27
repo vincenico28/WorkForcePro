@@ -140,7 +140,7 @@ export function AIAssistantPanel() {
         </div>
         <Badge variant="secondary" className="ml-auto text-xs">
           <Sparkles className="mr-1 size-3" />
-          GPT-4
+          Ollama
         </Badge>
       </div>
 
@@ -227,5 +227,41 @@ export function AIAssistantPanel() {
         </p>
       </div>
     </div>
+  )
+}
+
+export function FloatingAIAssistant() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <>
+      {/* Floating Button */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className={`fixed bottom-6 right-6 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 active:scale-95 ${
+          isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'
+        }`}
+      >
+        <Sparkles className="size-6" />
+      </button>
+
+      {/* Floating Panel */}
+      <div
+        className={`fixed bottom-6 right-6 z-50 w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-background shadow-2xl transition-all duration-300 origin-bottom-right ${
+          isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'
+        }`}
+        style={{ height: '600px', maxHeight: 'calc(100vh - 48px)' }}
+      >
+        <div className="absolute right-3 top-3 z-10">
+          <button
+            onClick={() => setIsOpen(false)}
+            className="flex size-8 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+        <AIAssistantPanel />
+      </div>
+    </>
   )
 }

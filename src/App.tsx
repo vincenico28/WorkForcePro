@@ -23,6 +23,7 @@ import SettingsPage from '@/pages/app/settings'
 import SystemUsersPage from '@/pages/app/users'
 import { Spinner } from '@/components/ui/spinner'
 import { PermissionGuard } from '@/components/auth/PermissionGuard'
+import { FloatingAIAssistant } from '@/components/shared/ai-assistant'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore()
@@ -49,7 +50,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-export default function App() {
+function App() {
   const initialize = useAuthStore((s) => s.initialize)
 
   useEffect(() => {
@@ -89,5 +90,14 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+  )
+}
+
+export default function AppWrapper() {
+  return (
+    <>
+      <App />
+      <FloatingAIAssistant />
+    </>
   )
 }

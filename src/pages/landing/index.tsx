@@ -29,56 +29,50 @@ const STATS = [
 const FEATURES = [
   {
     icon: Clock,
-    title: 'Time & Attendance',
-    desc: 'Real-time clock in/out with GPS verification, biometric ready, QR attendance, and automatic overtime detection.',
+    title: 'Advanced Attendance Tracking',
+    desc: 'Real-time clock in/out protected by strictly enforced GPS Geofencing (with Live Radar Maps) and Face Recognition Verification.',
     color: 'text-primary bg-primary/10',
   },
   {
-    icon: Calendar,
-    title: 'Shift & Scheduling',
-    desc: 'Drag-and-drop scheduler with conflict detection, recurring shifts, rotation management, and swap approvals.',
+    icon: Brain,
+    title: 'AI Workforce Analytics',
+    desc: 'Powered by Google Gemini. Predictive analytics, intelligent charts, absenteeism forecasting, and deep executive-ready insights.',
     color: 'text-violet-600 bg-violet-50 dark:bg-violet-950/40',
   },
   {
-    icon: Users,
-    title: 'Leave Management',
-    desc: 'Configurable leave types, accrual policies, multi-level approval workflows, and real-time balance tracking.',
+    icon: Calendar,
+    title: 'AI Roster Management',
+    desc: 'Drag-and-drop scheduler paired with an AI Roster Health Analyzer that detects coverage gaps and labor law violations.',
     color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40',
   },
   {
-    icon: BarChart3,
-    title: 'Workforce Analytics',
-    desc: 'Predictive analytics, absenteeism forecasting, productivity heatmaps, and executive-ready reports.',
+    icon: Users,
+    title: 'Intelligent Leave Management',
+    desc: 'Features an In-App Medical Certificate Viewer and an AI Leave Policy Evaluator that automatically recommends approvals/rejections.',
     color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/40',
   },
   {
-    icon: Brain,
-    title: 'AI Assistant',
-    desc: 'Natural language HR queries, intelligent scheduling recommendations, burnout detection, and smart insights.',
+    icon: FileText,
+    title: 'Printable Enterprise Assets',
+    desc: 'Instantly generate A4 Printable PDF Payslips with automated tax deductions, and CR80 Printable PDF Employee ID Badges with barcodes.',
     color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/40',
   },
   {
-    icon: Shield,
-    title: 'Enterprise Security',
-    desc: 'SOC 2 compliant, RBAC, 2FA, audit logs, data encryption at rest and in transit, SSO ready.',
+    icon: Zap,
+    title: 'AI Corporate Communications',
+    desc: 'Draft rough notes and use our AI Announcement Generator to instantly transform them into highly professional company-wide memos.',
     color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/40',
   },
   {
-    icon: Bell,
-    title: 'Smart Notifications',
-    desc: 'Real-time alerts across email, SMS, push, Slack, and Teams. Configurable notification rules.',
+    icon: Shield,
+    title: 'Enterprise Grade Security',
+    desc: 'Role-Based Access Control (RBAC), Row Level Security (RLS) policies, secure Supabase authentication, and encrypted data.',
     color: 'text-orange-600 bg-orange-50 dark:bg-orange-950/40',
   },
   {
-    icon: FileText,
-    title: 'Document Management',
-    desc: 'Centralized document storage, e-signature ready, automated HR document workflows and templates.',
-    color: 'text-teal-600 bg-teal-50 dark:bg-teal-950/40',
-  },
-  {
     icon: Layers,
-    title: 'Payroll Integration',
-    desc: 'Seamless sync with major payroll providers. Automated timesheet exports, tax calculations, and compliance.',
+    title: 'Modern Web Architecture',
+    desc: 'Built on a blazing fast Vite + React stack, utilizing Framer Motion for stunning micro-animations and Tailwind CSS for responsive design.',
     color: 'text-fuchsia-600 bg-fuchsia-50 dark:bg-fuchsia-950/40',
   },
 ]
@@ -222,7 +216,7 @@ export default function LandingPage() {
             initial="hidden" animate="visible" custom={2} variants={fadeUp}
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground"
           >
-            Unify attendance, scheduling, leave management, payroll, and HR analytics in one intelligent platform. Trusted by 1,200+ companies managing over 50,000 employees worldwide.
+            A comprehensive Capstone project redefining HR management. Featuring Live GPS Geofencing, Facial Recognition, Printable A4/CR80 Assets, and an elite suite of Google Gemini AI agents for scheduling, analytics, and policy evaluation.
           </motion.p>
 
           <motion.div

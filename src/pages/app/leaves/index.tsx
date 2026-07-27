@@ -3,8 +3,9 @@ import { motion } from 'framer-motion'
 import { format } from 'date-fns'
 import {
   Calendar, CheckCircle, XCircle, Clock, Plus, Filter, Download,
-  ChevronRight, Loader2, Search
+  ChevronRight, Loader2, Search, Sparkles, FileImage
 } from 'lucide-react'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus } from '@/hooks/use-leaves'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -247,6 +248,42 @@ function LeaveCard({ leave, onAction }: { leave: LeaveRequest; onAction?: (id: s
   const cfg = STATUS_CONFIG[leave.status]
   const Icon = cfg?.icon ?? Clock
 
+  const [certOpen, setCertOpen] = useState(false)
+  const [evalOpen, setEvalOpen] = useState(false)
+  const [evalResult, setEvalResult] = useState<string | null>(null)
+  const [isEvaluating, setIsEvaluating] = useState(false)
+
+  const handleEvaluate = async () => {
+    setEvalOpen(true)
+    if (evalResult) return // Already evaluated
+
+    setIsEvaluating(true)
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not defined')
+      
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" })
+      
+      const prompt = `You are a professional HR Leave Policy Evaluator. 
+Analyze the following leave request:
+- Employee: ${leave.employees?.first_name} ${leave.employees?.last_name} (${leave.employees?.position})
+- Leave Type: ${leave.leave_types?.name}
+- Duration: ${leave.total_days} days
+- Reason: ${leave.reason || 'None provided'}
+- Medical Certificate Attached: ${leave.attachment_url ? 'Yes' : 'No'}
+
+Please provide a short summary of the request, note any policy flags (like missing medical certificates for sick leave), and give a final recommendation (Approve/Reject). Format nicely in Markdown.`
+
+      const result = await model.generateContent(prompt)
+      setEvalResult(result.response.text())
+    } catch (err: any) {
+      setEvalResult('Failed to evaluate: ' + err.message)
+    } finally {
+      setIsEvaluating(false)
+    }
+  }
+
   return (
     <Card className="transition-all hover:shadow-md">
       <CardContent className="p-5">
@@ -293,12 +330,60 @@ function LeaveCard({ leave, onAction }: { leave: LeaveRequest; onAction?: (id: s
 
         {leave.attachment_url && (
           <div className="mt-3">
-            <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" asChild>
-              <a href={leave.attachment_url} target="_blank" rel="noopener noreferrer">
-                <Download className="size-3" />
-                View Medical Certificate
-              </a>
+            <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" onClick={() => setCertOpen(true)}>
+              <FileImage className="size-3" />
+              View Medical Certificate
             </Button>
+            <Dialog open={certOpen} onOpenChange={setCertOpen}>
+              <DialogContent className="max-w-2xl bg-transparent border-none shadow-none text-white sm:rounded-xl">
+                <div className="flex flex-col items-center">
+                  <div className="w-full bg-background rounded-xl shadow-2xl overflow-hidden p-2">
+                    <div className="flex justify-between items-center mb-2 px-2">
+                      <h3 className="text-sm font-semibold text-foreground">Medical Certificate</h3>
+                      <Button variant="ghost" size="sm" asChild>
+                        <a href={leave.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground">
+                          Open Original <ChevronRight className="size-3 ml-1" />
+                        </a>
+                      </Button>
+                    </div>
+                    {leave.attachment_url.toLowerCase().endsWith('.pdf') ? (
+                      <iframe src={leave.attachment_url} className="w-full h-[60vh] rounded-lg border" />
+                    ) : (
+                      <img src={leave.attachment_url} alt="Medical Certificate" className="w-full max-h-[80vh] object-contain rounded-lg" />
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+
+        {leave.status === 'pending' && can.approveLeaves() && (
+          <div className="mt-3">
+            <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1 bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 hover:text-violet-700" onClick={handleEvaluate}>
+              <Sparkles className="size-3" /> AI Policy Evaluator
+            </Button>
+            <Dialog open={evalOpen} onOpenChange={setEvalOpen}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-violet-600">
+                    <Sparkles className="size-4" /> AI Policy Recommendation
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="min-h-[150px] max-h-[60vh] overflow-y-auto pr-2 flex flex-col pt-4">
+                  {isEvaluating ? (
+                    <div className="flex-1 flex flex-col items-center justify-center space-y-3">
+                      <Loader2 className="size-6 animate-spin text-violet-500" />
+                      <p className="text-sm text-muted-foreground animate-pulse">Analyzing company policies...</p>
+                    </div>
+                  ) : (
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-sm text-foreground space-y-2 leading-relaxed whitespace-pre-wrap">
+                      {evalResult}
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
 

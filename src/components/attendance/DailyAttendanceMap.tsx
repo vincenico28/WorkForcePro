@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Maximize2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import type { AttendanceRecord } from '@/types';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
+import { supabase, ORG_ID } from '@/lib/supabase';
 
 // Fix for default marker icons in React-Leaflet
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -28,7 +29,6 @@ function getStringColor(str: string) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-  // Ensure the color is not too light/white so it shows up on the map
   const color = '#' + '00000'.substring(0, 6 - c.length) + c;
   return color;
 }
@@ -54,22 +54,76 @@ interface DailyAttendanceMapProps {
 
 export function DailyAttendanceMap({ records }: DailyAttendanceMapProps) {
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [geofence, setGeofence] = useState<{lat: number, lng: number, radius: number} | null>(null);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data } = await supabase.from('organizations').select('geofence_settings').eq('id', ORG_ID).single();
+      if (data?.geofence_settings) setGeofence(data.geofence_settings as any);
+    };
+    fetchSettings();
+  }, []);
 
   // Filter out records that don't have a clockIn location
   const recordsWithLocation = records.filter(
     (record) => (record.location as any)?.clockIn
   );
 
-  // Default center (e.g., somewhere central or the first record)
-  const center = recordsWithLocation.length > 0 
-    ? [(recordsWithLocation[0].location as any).clockIn.lat, (recordsWithLocation[0].location as any).clockIn.lng]
-    : [0, 0];
+  // Default center
+  const center = geofence 
+    ? [geofence.lat, geofence.lng]
+    : recordsWithLocation.length > 0 
+      ? [(recordsWithLocation[0].location as any).clockIn.lat, (recordsWithLocation[0].location as any).clockIn.lng]
+      : [0, 0];
+
+  const MapInner = () => (
+    <>
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      {geofence && (
+        <Circle
+          center={[geofence.lat, geofence.lng]}
+          radius={geofence.radius}
+          pathOptions={{ fillColor: 'hsl(var(--primary))', color: 'hsl(var(--primary))', fillOpacity: 0.1 }}
+        />
+      )}
+      {recordsWithLocation.map((record) => {
+        const loc = (record.location as any).clockIn;
+        const markerColor = getStringColor(record.employee_id || record.id);
+        return (
+          <Marker key={record.id} position={[loc.lat, loc.lng]} icon={createCustomIcon(markerColor)}>
+            <Popup>
+              <div className="flex flex-col gap-2 min-w-[150px]">
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs">
+                      {`${record.employees?.first_name?.[0] ?? ''}${record.employees?.last_name?.[0] ?? ''}`}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold leading-none">{record.employees?.first_name} {record.employees?.last_name}</p>
+                    <p className="text-xs text-muted-foreground">{record.employees?.position}</p>
+                  </div>
+                </div>
+                <div className="text-xs mt-1">
+                  <p><strong>Clock In:</strong> {record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : 'N/A'}</p>
+                  <p><strong>Status:</strong> <span className="capitalize">{record.status}</span></p>
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        );
+      })}
+    </>
+  )
 
   return (
     <Card className="lg:col-span-3">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="text-base">Live Attendance Map</CardTitle>
+          <CardTitle className="text-base">Daily Clock-in Map</CardTitle>
           <CardDescription>View the clock-in locations of all employees today</CardDescription>
         </div>
         {recordsWithLocation.length > 0 && (
@@ -88,41 +142,11 @@ export function DailyAttendanceMap({ records }: DailyAttendanceMapProps) {
           <div className="h-[400px] w-full rounded-md overflow-hidden border z-0">
             <MapContainer 
               center={center as [number, number]} 
-              zoom={13} 
+              zoom={geofence ? 15 : 13} 
               scrollWheelZoom={false}
               className="h-full w-full z-0"
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {recordsWithLocation.map((record) => {
-                const loc = (record.location as any).clockIn;
-                const markerColor = getStringColor(record.employee_id || record.id);
-                return (
-                  <Marker key={record.id} position={[loc.lat, loc.lng]} icon={createCustomIcon(markerColor)}>
-                    <Popup>
-                      <div className="flex flex-col gap-2 min-w-[150px]">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs">
-                              {`${record.employees?.first_name?.[0] ?? ''}${record.employees?.last_name?.[0] ?? ''}`}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-semibold leading-none">{record.employees?.first_name} {record.employees?.last_name}</p>
-                            <p className="text-xs text-muted-foreground">{record.employees?.position}</p>
-                          </div>
-                        </div>
-                        <div className="text-xs mt-1">
-                          <p><strong>Clock In:</strong> {record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : 'N/A'}</p>
-                          <p><strong>Status:</strong> <span className="capitalize">{record.status}</span></p>
-                        </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
-              })}
+              <MapInner />
             </MapContainer>
           </div>
         )}
@@ -133,41 +157,11 @@ export function DailyAttendanceMap({ records }: DailyAttendanceMapProps) {
           <div className="flex-1 h-full w-full z-0 relative">
             <MapContainer 
               center={center as [number, number]} 
-              zoom={13} 
+              zoom={geofence ? 15 : 13} 
               scrollWheelZoom={true}
               className="h-full w-full z-0"
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {recordsWithLocation.map((record) => {
-                const loc = (record.location as any).clockIn;
-                const markerColor = getStringColor(record.employee_id || record.id);
-                return (
-                  <Marker key={`fs-${record.id}`} position={[loc.lat, loc.lng]} icon={createCustomIcon(markerColor)}>
-                    <Popup>
-                      <div className="flex flex-col gap-2 min-w-[150px]">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="text-xs">
-                              {`${record.employees?.first_name?.[0] ?? ''}${record.employees?.last_name?.[0] ?? ''}`}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-semibold leading-none">{record.employees?.first_name} {record.employees?.last_name}</p>
-                            <p className="text-xs text-muted-foreground">{record.employees?.position}</p>
-                          </div>
-                        </div>
-                        <div className="text-xs mt-1">
-                          <p><strong>Clock In:</strong> {record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : 'N/A'}</p>
-                          <p><strong>Status:</strong> <span className="capitalize">{record.status}</span></p>
-                        </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                );
-              })}
+              <MapInner />
             </MapContainer>
           </div>
         </DialogContent>

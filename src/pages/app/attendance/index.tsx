@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { WebcamCapture } from '@/components/face-recognition/WebcamCapture'
 import { LocationMapDialog } from '@/components/attendance/LocationMapDialog'
 import { DailyAttendanceMap } from '@/components/attendance/DailyAttendanceMap'
+import { LiveGeofenceMap } from '@/components/attendance/LiveGeofenceMap'
 import { playSuccessSound, playErrorSound } from '@/utils/audio'
 import { toast } from 'sonner'
 import { startOfMonth, endOfMonth, isSameDay } from 'date-fns'
@@ -51,6 +52,22 @@ function ClockWidget() {
   
   const [permissionsGranted, setPermissionsGranted] = useState<boolean | null>(null)
   const [checkingPermissions, setCheckingPermissions] = useState(false)
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null)
+
+  // Track user location when permissions are granted
+  useEffect(() => {
+    let watcher: number
+    if (permissionsGranted) {
+      watcher = navigator.geolocation.watchPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        (err) => console.warn("Watch position error:", err),
+        { enableHighAccuracy: true, maximumAge: 0 }
+      )
+    }
+    return () => {
+      if (watcher) navigator.geolocation.clearWatch(watcher)
+    }
+  }, [permissionsGranted])
 
   // Silently check if permissions are already granted on mount
   useEffect(() => {
@@ -173,7 +190,24 @@ function ClockWidget() {
       toast.success('Clocked in!', { description: `${format(new Date(), 'h:mm a')}` })
     } else {
       const t = toast.loading('Clocking out...')
-      await clockOut.mutateAsync({ employeeId: employee!.id, attendanceId: todayAtt!.id, location })
+      
+      // Impossible Travel Detection
+      let anomalyNote = ''
+      if (location && todayAtt?.location?.clockIn && todayAtt.clock_in) {
+        const clockInLoc = todayAtt.location.clockIn as { lat: number; lng: number }
+        const distKm = calculateDistance(clockInLoc.lat, clockInLoc.lng, location.lat, location.lng) / 1000
+        const hoursDiff = (new Date().getTime() - new Date(todayAtt.clock_in).getTime()) / 3600000
+        
+        if (hoursDiff > 0) {
+          const speedKmh = distKm / hoursDiff
+          // If speed is greater than a commercial airliner (800 km/h), flag it
+          if (speedKmh > 800) {
+            anomalyNote = `⚠️ SUSPICIOUS LOCATION: Impossible travel detected (${Math.round(speedKmh)} km/h)`
+          }
+        }
+      }
+
+      await clockOut.mutateAsync({ employeeId: employee!.id, attendanceId: todayAtt!.id, location, notes: anomalyNote || undefined })
       toast.dismiss(t)
       toast.success('Clocked out!', { description: `${format(new Date(), 'h:mm a')}` })
     }
@@ -239,9 +273,15 @@ function ClockWidget() {
           <div className="text-5xl font-bold tabular-nums tracking-tight text-sidebar-foreground">
             {format(time, 'HH:mm:ss')}
           </div>
-          <div className="mt-1 text-sm text-sidebar-foreground/60">
+          <div className="mt-1 text-sm text-sidebar-foreground/60 mb-4">
             {format(time, 'EEEE, MMMM d, yyyy')}
           </div>
+
+          {permissionsGranted && !isDone && (
+            <div className="mx-auto max-w-sm rounded-xl overflow-hidden bg-white/5 p-2 shadow-sm border border-white/10">
+              <LiveGeofenceMap userLocation={userLocation} />
+            </div>
+          )}
 
           <div className="mt-6 flex justify-center">
             {isDone ? (

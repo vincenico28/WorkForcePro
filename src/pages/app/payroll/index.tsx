@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -40,10 +43,129 @@ function estimateGross(totalHours: number, overtimeHours: number, baseHourly = 4
 
 const DEDUCTION_RATE = 0.24 // flat 24% for simplicity
 
+function PayslipDialog({ 
+  open, 
+  onOpenChange, 
+  data,
+  period
+}: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void; 
+  data: any;
+  period: string;
+}) {
+  if (!data) return null
+  const { emp, totalHours, overtimeHours, gross, deductions, net } = data
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl bg-white text-black sm:rounded-xl">
+        {/* We use a printable area class that can be targeted by CSS */}
+        <div className="print-area p-8">
+          <DialogHeader className="mb-8 border-b pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-3xl font-bold text-black tracking-tight">PAYSLIP</DialogTitle>
+                <p className="text-sm text-gray-500 mt-1">Pay Period: {period}</p>
+              </div>
+              <div className="text-right">
+                <h3 className="font-bold text-xl text-violet-600">Workforce Pro</h3>
+                <p className="text-sm text-gray-500">123 Corporate Blvd.</p>
+                <p className="text-sm text-gray-500">San Francisco, CA 94103</p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-12 mb-8">
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Employee Details</p>
+              <p className="font-bold text-lg">{emp.first_name} {emp.last_name}</p>
+              <p className="text-sm text-gray-600">{emp.position}</p>
+              <p className="text-sm text-gray-600">{emp.departments?.name || 'No Department'}</p>
+              <p className="text-sm text-gray-600 mt-2">ID: {emp.id.split('-')[0]}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Payment Details</p>
+              <div className="flex justify-between border-b border-gray-100 py-1">
+                <span className="text-sm text-gray-600">Payment Method</span>
+                <span className="text-sm font-medium">Direct Deposit</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 py-1">
+                <span className="text-sm text-gray-600">Bank</span>
+                <span className="text-sm font-medium">Chase ****1234</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden mb-8">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-600">Description</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-600">Hours/Rate</th>
+                  <th className="text-right py-3 px-4 font-semibold text-gray-600">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                <tr>
+                  <td className="py-3 px-4">Regular Base Pay</td>
+                  <td className="text-right py-3 px-4 text-gray-500">{Math.max(0, totalHours - overtimeHours).toFixed(1)}h</td>
+                  <td className="text-right py-3 px-4">{fmt(Math.max(0, totalHours - overtimeHours) * 45)}</td>
+                </tr>
+                {overtimeHours > 0 && (
+                  <tr>
+                    <td className="py-3 px-4">Overtime Pay (1.5x)</td>
+                    <td className="text-right py-3 px-4 text-gray-500">{overtimeHours.toFixed(1)}h</td>
+                    <td className="text-right py-3 px-4">{fmt(overtimeHours * 45 * 1.5)}</td>
+                  </tr>
+                )}
+                <tr className="bg-gray-50/50">
+                  <td className="py-3 px-4 font-medium">Gross Earnings</td>
+                  <td className="text-right py-3 px-4"></td>
+                  <td className="text-right py-3 px-4 font-bold">{fmt(gross)}</td>
+                </tr>
+                <tr>
+                  <td className="py-3 px-4 text-red-600">Standard Tax Deduction (24%)</td>
+                  <td className="text-right py-3 px-4 text-gray-500"></td>
+                  <td className="text-right py-3 px-4 text-red-600">-{fmt(deductions)}</td>
+                </tr>
+              </tbody>
+              <tfoot className="bg-violet-600 text-white">
+                <tr>
+                  <td className="py-4 px-4 font-bold text-lg">Net Pay</td>
+                  <td className="text-right py-4 px-4"></td>
+                  <td className="text-right py-4 px-4 font-bold text-xl">{fmt(net)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div className="text-center text-xs text-gray-400 mt-12">
+            <p>This is a computer generated document. No signature is required.</p>
+          </div>
+        </div>
+
+        {/* Action buttons (hidden when printing) */}
+        <div className="flex justify-end gap-2 p-6 pt-0 no-print">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button className="bg-violet-600 hover:bg-violet-700 text-white gap-2" onClick={handlePrint}>
+            <Download className="size-4" /> Download PDF
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function PayrollPage() {
   const { can } = usePermissions()
   const [activeTab, setActiveTab] = useState('overview')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedPayslip, setSelectedPayslip] = useState<any>(null)
 
   const today = new Date()
   const monthStart = format(startOfMonth(today), 'yyyy-MM-dd')
@@ -237,8 +359,16 @@ export default function PayrollPage() {
         ))}
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+      {/* Payslip Dialog */}
+      <PayslipDialog 
+        open={!!selectedPayslip} 
+        onOpenChange={(op) => !op && setSelectedPayslip(null)} 
+        data={selectedPayslip}
+        period={`${format(today, 'MMMM yyyy')}`}
+      />
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="no-print">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
         </TabsList>
@@ -344,22 +474,28 @@ export default function PayrollPage() {
                       <TableHead className="text-right hidden sm:table-cell">Hours</TableHead>
                       <TableHead className="text-right">Est. Gross</TableHead>
                       <TableHead className="text-right hidden sm:table-cell">Deductions</TableHead>
-                      <TableHead className="text-right">Est. Net</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right w-[120px]">Net Pay</TableHead>
+                      <TableHead className="text-center w-[120px]">Status</TableHead>
+                      <TableHead className="w-[40px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {payrollRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="py-12 text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={8} className="py-12 text-center text-sm text-muted-foreground">
                           No active employees found
                         </TableCell>
                       </TableRow>
-                    ) : payrollRows.map(({ emp, totalHours, overtimeHours, gross, deductions, net, status }) => {
+                    ) : payrollRows.map((r) => {
+                      const { emp, totalHours, overtimeHours, gross, deductions, net, status } = r
                       const cfg = STATUS_CONFIG[status]
                       const Icon = cfg.icon
                       return (
-                        <TableRow key={emp.id} className="hover:bg-muted/40">
+                        <TableRow 
+                          key={emp.id} 
+                          className="hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedPayslip(r)}
+                        >
                           <TableCell>
                             <div className="flex items-center gap-2.5">
                               <Avatar className="size-8">
@@ -398,6 +534,9 @@ export default function PayrollPage() {
                               <Icon className="size-2.5" />
                               {cfg.label}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <ChevronRight className="size-4 text-muted-foreground ml-auto" />
                           </TableCell>
                         </TableRow>
                       )

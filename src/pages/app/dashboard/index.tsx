@@ -39,8 +39,9 @@ function StatCard({
   color: string; loading?: boolean; subtitle?: string
 }) {
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-5">
+    <Card className="overflow-hidden glass-card relative group">
+      <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <CardContent className="p-5 relative z-10">
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-4 w-24" />
@@ -226,7 +227,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Attendance chart */}
         <motion.div initial="hidden" animate="visible" custom={4} variants={fadeUp} className="lg:col-span-2">
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
                 <CardTitle className="text-base font-semibold">Attendance Overview</CardTitle>
@@ -239,16 +240,52 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={attChartConfig} className="min-h-[220px] w-full">
-                <BarChart data={attendanceChartData} barCategoryGap="30%">
-                  <CartesianGrid vertical={false} className="stroke-border" />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+              <ChartContainer config={attChartConfig} className="min-h-[240px] w-full">
+                <AreaChart data={attendanceChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="fillPresent" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-present)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--color-present)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="fillLate" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-late)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--color-late)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                  <XAxis 
+                    dataKey="date" 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fontSize: 11 }} 
+                    tickMargin={10} 
+                  />
+                  <YAxis 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fontSize: 11 }} 
+                    tickMargin={10} 
+                  />
                   <Tooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="present" fill="var(--color-present)" radius={[4, 4, 0, 0]} stackId="a" />
-                  <Bar dataKey="late" fill="var(--color-late)" radius={[4, 4, 0, 0]} stackId="a" />
-                  <Bar dataKey="absent" fill="var(--color-absent)" radius={[4, 4, 0, 0]} stackId="a" />
-                </BarChart>
+                  <Area 
+                    type="monotone" 
+                    dataKey="present" 
+                    stroke="var(--color-present)" 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#fillPresent)" 
+                    stackId="1"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="late" 
+                    stroke="var(--color-late)" 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#fillLate)" 
+                    stackId="2"
+                  />
+                </AreaChart>
               </ChartContainer>
             </CardContent>
           </Card>
@@ -256,7 +293,7 @@ export default function DashboardPage() {
 
         {/* Department breakdown */}
         <motion.div initial="hidden" animate="visible" custom={5} variants={fadeUp}>
-          <Card className="h-full">
+          <Card className="h-full glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold">By Department</CardTitle>
               <CardDescription>Employee distribution</CardDescription>
@@ -264,7 +301,20 @@ export default function DashboardPage() {
             <CardContent>
               <div className="relative mb-4 flex justify-center">
                 <PieChart width={160} height={160}>
-                  <Pie data={deptChartData} cx={75} cy={75} innerRadius={45} outerRadius={70} paddingAngle={2} dataKey="value">
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px' }}
+                    itemStyle={{ color: 'var(--foreground)' }}
+                  />
+                  <Pie 
+                    data={deptChartData} 
+                    cx={75} 
+                    cy={75} 
+                    innerRadius={45} 
+                    outerRadius={70} 
+                    paddingAngle={3} 
+                    dataKey="value"
+                    stroke="none"
+                  >
                     {deptChartData.map((_, idx) => (
                       <Cell key={idx} fill={DEPT_COLORS[idx % DEPT_COLORS.length]} />
                     ))}
@@ -291,7 +341,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Recent Leave Requests */}
         <motion.div initial="hidden" animate="visible" custom={6} variants={fadeUp} className="lg:col-span-3">
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between pb-4">
               <div>
                 <CardTitle className="text-base font-semibold">Leave Requests</CardTitle>
@@ -340,7 +390,7 @@ export default function DashboardPage() {
         {/* Announcements + Quick Stats */}
         <motion.div initial="hidden" animate="visible" custom={7} variants={fadeUp} className="flex flex-col gap-4 lg:col-span-2">
           {/* Quick metrics */}
-          <Card>
+          <Card className="glass-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">This Month</CardTitle>
             </CardHeader>
@@ -362,7 +412,7 @@ export default function DashboardPage() {
           </Card>
 
           {/* Announcements */}
-          <Card className="flex-1">
+          <Card className="flex-1 glass-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold">Announcements</CardTitle>
             </CardHeader>

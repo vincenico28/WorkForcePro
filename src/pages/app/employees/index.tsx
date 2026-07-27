@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, Filter, UserPlus, MoreHorizontal, Mail, Phone,
-  Building2, Users, UserCheck, UserX, Clock,
+  Building2, Users, UserCheck, UserX, Clock, Printer, QrCode,
+  ChevronDown, ChevronUp
 } from 'lucide-react'
 import { useEmployees, useUpdateEmployee } from '@/hooks/use-employees'
 import { useDepartments } from '@/hooks/use-misc'
@@ -19,6 +20,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -46,6 +48,75 @@ const ROLE_LABELS: Record<string, string> = {
   hr_manager: 'HR Manager',
   team_supervisor: 'Supervisor',
   employee: 'Employee',
+}
+
+function IDCardDialog({ emp, open, onOpenChange }: { emp: Employee | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  if (!emp) return null
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md bg-transparent border-none shadow-none text-black sm:rounded-xl">
+        <div className="flex flex-col items-center">
+          {/* Printable CR80 Standard ID Card Layout (Portrait) */}
+          <div className="print-area w-[2.125in] h-[3.375in] bg-white rounded-xl shadow-2xl overflow-hidden relative flex flex-col mx-auto shrink-0 transform scale-[1.5] sm:scale-[1.8] transform-origin-top">
+            {/* Header / Brand Banner */}
+            <div className="bg-violet-600 h-16 w-full flex items-center justify-center pt-2">
+              <h2 className="text-white font-black text-sm tracking-widest uppercase">Workforce Pro</h2>
+            </div>
+            
+            {/* Photo Avatar */}
+            <div className="absolute top-10 left-1/2 -translate-x-1/2">
+              <div className="w-16 h-16 bg-gray-100 rounded-full border-4 border-white flex items-center justify-center overflow-hidden shadow-sm">
+                <span className="text-gray-400 font-bold text-2xl">
+                  {`${emp.first_name[0]}${emp.last_name?.[0] ?? ''}`}
+                </span>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="pt-14 px-4 text-center flex-1 flex flex-col">
+              <h3 className="font-bold text-gray-900 text-[13px] uppercase tracking-wide leading-tight mt-1">
+                {emp.first_name} {emp.last_name}
+              </h3>
+              <p className="text-[10px] text-violet-600 font-semibold mt-1 leading-tight">
+                {emp.position || 'Employee'}
+              </p>
+              <p className="text-[8px] text-gray-500 font-medium uppercase mt-0.5">
+                {emp.departments?.name || 'No Dept'}
+              </p>
+
+              <div className="mt-auto pb-4 flex flex-col items-center">
+                {/* Fake Barcode Line */}
+                <div className="w-full flex justify-center gap-0.5 mb-1.5 opacity-60">
+                  {Array.from({ length: 30 }).map((_, i) => (
+                    <div key={i} className={`bg-gray-800 h-6 ${Math.random() > 0.5 ? 'w-0.5' : Math.random() > 0.8 ? 'w-1' : 'w-px'}`} />
+                  ))}
+                </div>
+                <p className="text-[7px] text-gray-400 font-mono tracking-widest">
+                  ID: {emp.id.split('-')[0].toUpperCase()}
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom Color Bar */}
+            <div className="h-1.5 w-full bg-violet-600 absolute bottom-0" />
+          </div>
+
+          {/* Action buttons (hidden when printing) */}
+          <div className="flex justify-center gap-2 mt-20 sm:mt-24 no-print w-full bg-background/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button className="bg-violet-600 hover:bg-violet-700 text-white gap-2" onClick={handlePrint}>
+              <Printer className="size-4" /> Print Badge
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 type EmpFormState = {
@@ -151,6 +222,107 @@ function EmployeeFormFields({
   )
 }
 
+function OrgNode({ employee, allEmployees }: { employee: Employee; allEmployees: Employee[] }) {
+  const [isExpanded, setIsExpanded] = useState(true)
+  const directReports = allEmployees.filter(e => e.manager_id === employee.id && e.status !== 'terminated')
+  const hasReports = directReports.length > 0
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* Node Card */}
+      <motion.div 
+        layout
+        className="relative z-10 w-[220px] rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-white/20 dark:border-slate-700/50 p-5 text-center shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] transition-all hover:shadow-[0_8px_30px_rgb(124,58,237,0.15)] group"
+      >
+        {/* Status indicator */}
+        <div className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ring-4 ring-background ${employee.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+
+        <Avatar className="mx-auto mb-3 size-16 shadow-md ring-2 ring-background">
+          <AvatarFallback className="bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white font-bold text-lg">
+            {`${employee.first_name[0]}${employee.last_name?.[0] ?? ''}`}
+          </AvatarFallback>
+        </Avatar>
+        
+        <p className="text-base font-bold text-slate-800 dark:text-slate-100 truncate px-1">{employee.first_name} {employee.last_name}</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate px-1 mt-0.5">{employee.position || 'Employee'}</p>
+        
+        <div className="mt-3">
+          <span className="text-[10px] font-bold tracking-wider uppercase text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/30 rounded-full px-3 py-1 inline-block truncate max-w-[160px] border border-violet-200 dark:border-violet-800/50">
+            {employee.departments?.name || 'No Dept'}
+          </span>
+        </div>
+
+        {hasReports && (
+          <button 
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="absolute -bottom-3.5 left-1/2 -translate-x-1/2 w-7 h-7 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-violet-600 hover:border-violet-300 dark:hover:border-violet-700 transition-colors shadow-sm z-20"
+          >
+            {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+        )}
+      </motion.div>
+
+      {/* Children */}
+      <AnimatePresence>
+        {hasReports && isExpanded && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0, y: -20 }}
+            animate={{ opacity: 1, height: 'auto', y: 0 }}
+            exit={{ opacity: 0, height: 0, y: -20, overflow: 'hidden' }}
+            className="relative pt-8 flex justify-center"
+          >
+            {/* Vertical line dropping from parent */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-8 bg-slate-300 dark:bg-slate-700"></div>
+            
+            <div className="flex justify-center">
+              {directReports.map((child, i) => {
+                const isFirst = i === 0
+                const isLast = i === directReports.length - 1
+                const isOnly = directReports.length === 1
+
+                return (
+                  <div key={child.id} className="relative pt-8 px-4 flex flex-col items-center">
+                    {/* Vertical line dropping to child */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-px h-8 bg-slate-300 dark:bg-slate-700"></div>
+                    
+                    {/* Horizontal connecting line logic */}
+                    {!isOnly && (
+                      <div 
+                        className={`absolute top-0 h-px bg-slate-300 dark:bg-slate-700 ${
+                          isFirst ? 'left-1/2 right-0' : 
+                          isLast ? 'left-0 right-1/2' : 
+                          'left-0 right-0'
+                        }`}
+                      />
+                    )}
+
+                    <OrgNode employee={child} allEmployees={allEmployees} />
+                  </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function OrgChart({ employees }: { employees: Employee[] }) {
+  const empMap = new Set(employees.map(e => e.id))
+  const roots = employees.filter(e => !e.manager_id || !empMap.has(e.manager_id))
+
+  return (
+    <div className="w-full overflow-x-auto pb-8 pt-4 custom-scrollbar">
+      <div className="min-w-max flex justify-center gap-12">
+        {roots.map(root => (
+          <OrgNode key={root.id} employee={root} allEmployees={employees} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function EmployeesPage() {
   const { data: employees, isLoading, refetch } = useEmployees()
   const { data: departments } = useDepartments()
@@ -160,11 +332,13 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [deptFilter, setDeptFilter] = useState('all')
+  const [activeTab, setActiveTab] = useState('grid')
 
   const [addOpen, setAddOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [editEmp, setEditEmp] = useState<Employee | null>(null)
   const [deactivateEmp, setDeactivateEmp] = useState<Employee | null>(null)
+  const [idCardEmp, setIdCardEmp] = useState<Employee | null>(null)
   const [form, setForm] = useState<EmpFormState>(EMPTY_FORM)
 
   const update = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
@@ -291,6 +465,8 @@ export default function EmployeesPage() {
 
   return (
     <div className="space-y-6">
+      <IDCardDialog emp={idCardEmp} open={!!idCardEmp} onOpenChange={(op) => !op && setIdCardEmp(null)} />
+      
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
@@ -365,7 +541,16 @@ export default function EmployeesPage() {
         <span className="ml-auto text-xs text-muted-foreground">{filtered.length} employees</span>
       </div>
 
-      {/* Employee Grid */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+        <div className="flex items-center justify-between mb-4">
+          <TabsList>
+            <TabsTrigger value="grid">Grid View</TabsTrigger>
+            <TabsTrigger value="org">Organization Chart</TabsTrigger>
+          </TabsList>
+        </div>
+        
+        <TabsContent value="grid" className="m-0 focus-visible:outline-none focus-visible:ring-0">
+          {/* Employee Grid */}
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
@@ -425,8 +610,13 @@ export default function EmployeesPage() {
                         <DropdownMenuItem asChild>
                           <Link to={`/app/employees/${emp.id}`}>View Profile</Link>
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIdCardEmp(emp)}>
+                          <QrCode className="mr-2 size-3.5" />
+                          Generate ID Card
+                        </DropdownMenuItem>
                         {can.manageEmployees() && (
                           <>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => openEdit(emp)}>Edit</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {emp.status === 'inactive' ? (
@@ -472,6 +662,28 @@ export default function EmployeesPage() {
           ))}
         </div>
       )}
+        </TabsContent>
+        
+        <TabsContent value="org" className="m-0 focus-visible:outline-none focus-visible:ring-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16">
+              <Users className="mb-3 size-10 text-muted-foreground/40" />
+              <p className="text-sm font-medium">No employees found</p>
+              <p className="text-xs text-muted-foreground">Try adjusting your search or filters</p>
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-8 bg-muted/20 overflow-hidden">
+                <OrgChart employees={filtered} />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Add Employee Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

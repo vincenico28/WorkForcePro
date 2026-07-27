@@ -136,6 +136,21 @@ export function useBulkApproveTimesheetEntries() {
   })
 }
 
+export function useBulkCreateTimesheetEntries() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (entries: Partial<TimesheetEntry>[]) => {
+      const { data, error } = await supabase
+        .from('timesheet_entries')
+        .insert(entries)
+        .select()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timesheet-entries'] }),
+  })
+}
+
 // Utility function to get the current week's date range
 export function getWeekRange(date: Date = new Date()) {
   const start = startOfWeek(date, { weekStartsOn: 1 })

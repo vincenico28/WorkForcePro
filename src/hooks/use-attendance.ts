@@ -124,19 +124,21 @@ export function useClockIn() {
 export function useClockOut() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ employeeId, attendanceId, location }: { employeeId: string; attendanceId: string; location?: { lat: number; lng: number } }) => {
+    mutationFn: async ({ employeeId, attendanceId, location, notes }: { employeeId: string; attendanceId: string; location?: { lat: number; lng: number }, notes?: string }) => {
       const now = new Date()
       const { data: existing } = await supabase
         .from('attendance_records')
-        .select('clock_in, date, location')
+        .select('clock_in, date, location, notes')
         .eq('id', attendanceId)
         .single()
 
       let totalHours = 0
       if (existing?.clock_in) {
         const diff = now.getTime() - new Date(existing.clock_in).getTime()
-        totalHours = parseFloat((diff / 3600000 - 1).toFixed(2))
+        totalHours = parseFloat((diff / 3600000 - 1).toFixed(2)) // Subtract 1 hour for break
       }
+
+      const newNotes = [existing?.notes, notes].filter(Boolean).join(' | ')
 
       const { data, error } = await supabase
         .from('attendance_records')
@@ -145,6 +147,7 @@ export function useClockOut() {
           total_hours: totalHours,
           overtime_hours: Math.max(0, totalHours - 8),
           updated_at: now.toISOString(),
+          notes: newNotes || null,
           ...(location ? { location: { ...(existing?.location as any || {}), clockOut: location } } : {})
         })
         .eq('id', attendanceId)

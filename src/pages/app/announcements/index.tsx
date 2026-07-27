@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Megaphone, Pin, AlertTriangle, Calendar, Info, FileText, Plus, Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Megaphone, Pin, AlertTriangle, Calendar, Info, FileText, Plus, Loader2, Pencil, Trash2, Sparkles } from 'lucide-react'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } from '@/hooks/use-misc'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
@@ -36,6 +37,7 @@ function CreateAnnouncementDialog() {
   const { employee } = useAuthStore()
   const { mutateAsync, isPending } = useCreateAnnouncement()
   const [open, setOpen] = useState(false)
+  const [isEnhancing, setIsEnhancing] = useState(false)
   const [form, setForm] = useState({
     title: '',
     content: '',
@@ -56,6 +58,38 @@ function CreateAnnouncementDialog() {
       setForm({ title: '', content: '', type: 'general', is_pinned: false })
     } catch (err: any) {
       toast.error('Failed to publish announcement', { description: err.message })
+    }
+  }
+
+  const handleEnhance = async () => {
+    if (!form.content.trim()) {
+      toast.error('Please write a draft first')
+      return
+    }
+    
+    setIsEnhancing(true)
+    const t = toast.loading('Enhancing with AI...')
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not defined')
+      
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" })
+      
+      const prompt = `You are a professional HR internal communications assistant. Rewrite the following draft into a polished, professional, and well-formatted company-wide announcement memo. Keep it concise but professional. Do not wrap in quotes or add extra introductory text. 
+
+Draft: "${form.content}"`
+
+      const result = await model.generateContent(prompt)
+      const text = result.response.text()
+      
+      setForm(prev => ({ ...prev, content: text }))
+      toast.success('Announcement enhanced!')
+    } catch (error: any) {
+      toast.error('AI Enhancement Failed', { description: error.message })
+    } finally {
+      toast.dismiss(t)
+      setIsEnhancing(false)
     }
   }
 
@@ -100,7 +134,20 @@ function CreateAnnouncementDialog() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Content *</Label>
+            <div className="flex items-center justify-between">
+              <Label>Content *</Label>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-xs gap-1 bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 hover:text-violet-700"
+                onClick={handleEnhance}
+                disabled={isEnhancing || !form.content}
+              >
+                {isEnhancing ? <Loader2 className="size-3 animate-spin" /> : <Sparkles className="size-3" />}
+                Enhance with AI
+              </Button>
+            </div>
             <Textarea
               value={form.content}
               onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
