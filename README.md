@@ -57,6 +57,19 @@ We believe enterprise software shouldn't look boring. The entire platform was de
 
 ---
 
+## 🛡️ Enterprise Security Architecture
+
+Data privacy and system integrity are paramount. We've implemented multiple layers of security to protect organizational data from external and internal threats.
+
+- **Strict Row-Level Security (RLS):** Implemented at the PostgreSQL database level. Even if the API is exposed, users can *only* read/write data associated with their own `org_id` and specific role.
+- **Role-Based Access Control (RBAC):** UI routing and API endpoints enforce strict capability boundaries between `Super Admin`, `HR Manager`, `Manager`, and `Employee`.
+- **Immutable Audit Trails:** Timesheet and Attendance records are append-only for standard users to prevent historical manipulation.
+- **Biometric Anti-Spoofing:** The Python OpenCV liveness and face recognition pipeline prevents employees from clocking in using photos or videos of other staff (Buddy Punching).
+- **GPS Fraud Prevention:** Velocity-based anomaly detection identifies and flags Impossible Travel (e.g., using a mock location or GPS spoofing app).
+- **Secure Document Storage:** Medical certificates and profile images are stored in protected Supabase Storage buckets with time-limited signed URLs and strict RLS download policies.
+
+---
+
 ## 🛠️ Technology Stack
 
 ### Frontend Architecture
