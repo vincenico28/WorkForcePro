@@ -7,7 +7,7 @@ This document outlines the high-level architecture, component interactions, and 
 
 ## 1. High-Level System Architecture
 
-The system follows a modern **Three-Tier Service-Oriented Architecture (SOA)**, separating the presentation layer, the data/auth layer, and the heavy computational AI layer into distinct, decoupled services.
+The system follows a modern **Service-Oriented Architecture (SOA)**, separating the presentation layer, the data/auth layer, and the heavy computational AI layers into distinct, decoupled services.
 
 ```mermaid
 graph TD
@@ -15,6 +15,7 @@ graph TD
         UI["React Web Application\n(Vite + TypeScript)"]
         Map["Leaflet GPS Maps"]
         Cam["Webcam API"]
+        Chat["AI Assistant Component"]
     end
 
     subgraph "Data & Security Tier (BaaS)"
@@ -28,23 +29,31 @@ graph TD
         OpenCV["Face Recognition Engine\n(OpenCV + dlib)"]
     end
 
+    subgraph "External LLM Services"
+        Gemini["Google Gemini API"]
+    end
+
     %% Connections
-    UI <-->|"Authentication (OAuth/Email)"| SupaAuth
-    UI <-->|"CRUD Operations (REST/Realtime)"| SupaDB
+    UI <-->|"Authentication (OAuth)"| SupaAuth
+    UI <-->|"CRUD Operations (REST)"| SupaDB
     UI <-->|"Document & Image Uploads"| SupaStore
     
     UI -->|"POST Image Payload (Base64)"| FastAPI
     FastAPI <-->|"Matrix Computations"| OpenCV
     FastAPI -.->|"JSON Verification Result"| UI
     
+    Chat <-->|"Natural Language Queries"| Gemini
+    Chat -.->|"Local State Awareness"| UI
+    
     Cam -.->|"Stream"| UI
     Map -.->|"Render"| UI
 ```
 
 ### Tier Breakdown:
-1. **Client Tier (Vercel):** The user-facing React application. It handles routing, UI state, form validation, capturing webcam data, and querying the browser's Geolocation API.
+1. **Client Tier (Vercel):** The user-facing React application. It handles routing, UI state, form validation, capturing webcam data, rendering live interactive Maps (Leaflet), and managing the context-aware Gemini AI chat assistant.
 2. **Data & Security Tier (Supabase):** The central hub for persistent state. It utilizes PostgreSQL with strict Row-Level Security (RLS) policies to ensure that users (Employees vs. HR) can only read/write data permitted by their cryptographic JWT role.
 3. **AI Microservice Tier (Render):** A stateless Python application designed specifically to handle heavy C++ matrix computations required for facial recognition. It is completely isolated from the database to ensure the frontend remains highly performant and scalable.
+4. **External LLM Services:** Integration with Google's Gemini API to power the conversational AI Assistant, enabling dynamic querying of HR data.
 
 ---
 
@@ -101,6 +110,9 @@ sequenceDiagram
     end
 ```
 
+### Clock-Out Anomaly Detection
+When a user attempts to **Clock Out**, the system executes a reverse validation flow that calculates the travel velocity between the original clock-in coordinates and the current clock-out coordinates. If the speed implies impossible travel (e.g., >800 km/h), the record is immediately flagged in the database to prevent GPS spoofing fraud.
+
 ---
 
 ## 3. Security & Access Architecture
@@ -111,4 +123,5 @@ To satisfy enterprise security requirements, the application implements a defens
 2. **Authentication Security:** Users receive a cryptographically signed JSON Web Token (JWT) upon login via Supabase Auth.
 3. **Database Security (RLS):** Before executing any SQL query, PostgreSQL evaluates the JWT. 
    - *Example:* The policy `select_timesheet_org` ensures that a Manager can only query timesheet rows belonging to employees within their specific `org_id`.
-4. **Storage Security:** The `leave_attachments` bucket is strictly configured to prevent public file listing, ensuring medical documents remain confidential and only accessible via authenticated, explicit file-path requests.
+4. **Fraud Prevention AI:** Real-time spatial verification (Impossible Travel calculation) and computer-vision based Liveness checks prevent proxy attendance (buddy punching).
+5. **Storage Security:** The `leave_attachments` bucket is strictly configured to prevent public file listing, ensuring medical documents remain confidential and only accessible via authenticated, explicit file-path requests.
