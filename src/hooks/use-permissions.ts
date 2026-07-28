@@ -42,6 +42,7 @@ export function usePermissions() {
     createAnnouncements: () => hasPermission(role, 'announcements:create'),
     viewSettings: () => hasPermission(role, 'settings:view'),
     manageSettings: () => hasPermission(role, 'settings:manage'),
+    isSuperAdmin: () => role === 'super_admin',
     isAdmin: () => ['super_admin', 'admin'].includes(role ?? ''),
     isHR: () => ['super_admin', 'admin', 'hr_manager'].includes(role ?? ''),
     isSupervisor: () => ['super_admin', 'admin', 'hr_manager', 'team_supervisor'].includes(role ?? ''),

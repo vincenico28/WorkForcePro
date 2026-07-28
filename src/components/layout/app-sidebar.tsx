@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, Clock, Calendar, BarChart3, Building2,
   Settings, LogOut, Bell, Megaphone, ChevronDown, Briefcase,
-  DollarSign, Star, Timer, ShieldAlert,
+  DollarSign, Star, Timer, ShieldAlert, ShieldCheck
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLeaveRequests } from '@/hooks/use-leaves'
@@ -54,6 +54,7 @@ const NAV_REPORTS: NavItem[] = [
 const NAV_SYSTEM: NavItem[] = [
   { title: 'Settings', url: '/app/settings', icon: Settings, permission: 'settings:view' },
   { title: 'System Users', url: '/app/users', icon: ShieldAlert, permission: 'settings:view' },
+  { title: 'Audit Log', url: '/app/audit', icon: ShieldCheck, permission: 'settings:view' },
 ]
 
 function getInitials(firstName?: string, lastName?: string) {

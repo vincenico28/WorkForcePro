@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, Plus, Loader2, X, Search, Sparkles } from 'l
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
-import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule } from '@/hooks/use-schedules'
+import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule, useBulkCreateSchedule } from '@/hooks/use-schedules'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +48,7 @@ export default function SchedulePage() {
 
   const createSchedule = useCreateSchedule()
   const deleteSchedule = useDeleteSchedule()
+  const bulkCreateSchedule = useBulkCreateSchedule()
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
   
@@ -114,6 +115,62 @@ export default function SchedulePage() {
     }
   }
 
+  const handleAiAutoFill = async () => {
+    if (!employees || !shifts || employees.length === 0 || shifts.length === 0) {
+      toast.error('Need employees and shifts to generate a schedule.')
+      return
+    }
+
+    const loadId = toast.loading('AI is generating the optimal schedule...')
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+      if (!apiKey) throw new Error('VITE_GEMINI_API_KEY is not defined')
+      
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" })
+
+      // Get next 5 weekdays
+      const targetDays = eachDayOfInterval({ start: new Date(), end: new Date(new Date().setDate(new Date().getDate() + 7)) })
+        .filter(d => !isWeekend(d))
+        .slice(0, 5)
+
+      const prompt = `You are an expert AI scheduling assistant. 
+Generate a JSON array of schedules for the following employees for the dates: ${targetDays.map(d => format(d, 'yyyy-MM-dd')).join(', ')}.
+Each employee should be assigned EXACTLY ONE shift per date. Try to mix up the shifts for fairness.
+
+Employees:
+${employees.map(e => `- ${e.id} (${e.first_name})`).join('\n')}
+
+Available Shifts:
+${shifts.map(s => `- ${s.id} (${s.name})`).join('\n')}
+
+Return ONLY a raw JSON array (no markdown block, no markdown formatting) with objects matching this exact format:
+[
+  { "employee_id": "uuid", "shift_id": "uuid", "date": "YYYY-MM-DD", "status": "scheduled" }
+]`
+
+      const result = await model.generateContent(prompt)
+      let text = result.response.text().trim()
+      
+      // Clean up markdown if the AI mistakenly includes it
+      if (text.startsWith('\`\`\`')) {
+        text = text.replace(/^\`\`\`json/i, '').replace(/^\`\`\`/i, '').replace(/\`\`\`$/i, '').trim()
+      }
+
+      const generatedSchedules = JSON.parse(text)
+      
+      if (!Array.isArray(generatedSchedules) || generatedSchedules.length === 0) {
+        throw new Error('AI returned invalid schedule format')
+      }
+
+      await bulkCreateSchedule.mutateAsync(generatedSchedules)
+      toast.success('AI successfully auto-filled the schedule!', { id: loadId })
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Failed to generate schedule: ' + err.message, { id: loadId })
+    }
+  }
+
   const handleAnalyzeRoster = async () => {
     setAiOpen(true)
     if (aiResult) return
@@ -157,9 +214,12 @@ Keep the response concise, formatted in markdown, and highly professional.`
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
           <p className="text-sm text-muted-foreground">Manage shifts and employee schedules</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {can.manageSchedule() && (
             <>
+              <Button variant="outline" className="gap-1.5 shrink-0 bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700" onClick={handleAiAutoFill}>
+                <Sparkles className="size-4" /> AI Auto-Fill Week
+              </Button>
               <Button variant="outline" className="gap-1.5 shrink-0 bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 hover:text-violet-700" onClick={handleAnalyzeRoster}>
                 <Sparkles className="size-4" /> AI Health Check
               </Button>

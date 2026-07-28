@@ -59,6 +59,21 @@ export function useCreateSchedule() {
   })
 }
 
+export function useBulkCreateSchedule() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (schedules: Partial<Schedule>[]) => {
+      const { data, error } = await supabase
+        .from('schedules')
+        .insert(schedules)
+        .select()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
+  })
+}
+
 export function useUpdateSchedule() {
   const qc = useQueryClient()
   return useMutation({
