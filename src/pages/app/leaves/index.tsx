@@ -11,6 +11,8 @@ import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuthStore } from '@/stores/auth.store'
 import { supabase } from '@/lib/supabase'
+import { downloadCSV } from '@/utils/export'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +29,6 @@ import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { toast } from 'sonner'
 import type { LeaveRequest } from '@/types'
 
 const STATUS_CONFIG: Record<string, { className: string; label: string; icon: React.ElementType }> = {
@@ -428,6 +429,26 @@ export default function LeavesPage() {
   const { data: leaves, isLoading } = useLeaveRequests(activeTab)
   const { mutateAsync: updateStatus } = useUpdateLeaveStatus()
   const { data: leaveTypes } = useLeaveTypes()
+
+  const handleExport = () => {
+    if (!leaves?.length) {
+      toast.error('No leave data to export')
+      return
+    }
+    const exportData = leaves.map(l => ({
+      ID: l.id,
+      Employee: l.employees ? `${l.employees.first_name} ${l.employees.last_name}` : 'Unknown',
+      'Leave Type': l.leave_types?.name || 'Unknown',
+      'Start Date': l.start_date,
+      'End Date': l.end_date,
+      'Total Days': l.total_days,
+      Reason: l.reason || '',
+      Status: l.status
+    }))
+    downloadCSV(exportData, `leave_requests_export_${format(new Date(), 'yyyy-MM-dd')}`)
+    toast.success('Leave requests exported successfully')
+  }
+
   const { data: balances } = useLeaveBalances(employee?.id ?? '')
 
   const filteredLeaves = leaves?.filter(l => {
@@ -470,7 +491,7 @@ export default function LeavesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport}>
             <Download className="size-4" />
             Export
           </Button>

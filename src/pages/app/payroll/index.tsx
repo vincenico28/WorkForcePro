@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 import {
   DollarSign, Users, TrendingUp, TrendingDown, Download,
   CheckCircle, Clock, AlertCircle, ChevronRight, CreditCard,
@@ -33,10 +36,10 @@ const chartConfig = {
 }
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+  new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(n)
 
-// Derive estimated gross from hours worked (using $45/h average if no salary info)
-function estimateGross(totalHours: number, overtimeHours: number, baseHourly = 45) {
+// Derive estimated gross from hours worked (using PHP 250/h average if no salary info)
+function estimateGross(totalHours: number, overtimeHours: number, baseHourly = 250) {
   const regular = Math.max(0, totalHours - overtimeHours)
   return regular * baseHourly + overtimeHours * baseHourly * 1.5
 }
@@ -57,15 +60,40 @@ function PayslipDialog({
   if (!data) return null
   const { emp, totalHours, overtimeHours, gross, deductions, net } = data
 
-  const handlePrint = () => {
-    window.print()
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const handlePrint = async () => {
+    const input = document.getElementById('payslip-print-area')
+    if (!input) return
+
+    setIsGenerating(true)
+    try {
+      const canvas = await html2canvas(input, { scale: 2, useCORS: true })
+      const imgData = canvas.toDataURL('image/png')
+      
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width / 2, canvas.height / 2]
+      })
+
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2)
+      pdf.save(`Payslip_${emp.first_name}_${emp.last_name}_${period.replace(/ /g, '_')}.pdf`)
+      
+      toast.success('Payslip downloaded successfully')
+    } catch (error) {
+      console.error('Failed to generate PDF', error)
+      toast.error('Failed to generate PDF')
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-white text-black sm:rounded-xl">
         {/* We use a printable area class that can be targeted by CSS */}
-        <div className="print-area p-8">
+        <div id="payslip-print-area" className="print-area p-8 bg-white">
           <DialogHeader className="mb-8 border-b pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -114,13 +142,13 @@ function PayslipDialog({
                 <tr>
                   <td className="py-3 px-4">Regular Base Pay</td>
                   <td className="text-right py-3 px-4 text-gray-500">{Math.max(0, totalHours - overtimeHours).toFixed(1)}h</td>
-                  <td className="text-right py-3 px-4">{fmt(Math.max(0, totalHours - overtimeHours) * 45)}</td>
+                  <td className="text-right py-3 px-4">{fmt(Math.max(0, totalHours - overtimeHours) * 250)}</td>
                 </tr>
                 {overtimeHours > 0 && (
                   <tr>
                     <td className="py-3 px-4">Overtime Pay (1.5x)</td>
                     <td className="text-right py-3 px-4 text-gray-500">{overtimeHours.toFixed(1)}h</td>
-                    <td className="text-right py-3 px-4">{fmt(overtimeHours * 45 * 1.5)}</td>
+                    <td className="text-right py-3 px-4">{fmt(overtimeHours * 250 * 1.5)}</td>
                   </tr>
                 )}
                 <tr className="bg-gray-50/50">
@@ -152,8 +180,9 @@ function PayslipDialog({
         {/* Action buttons (hidden when printing) */}
         <div className="flex justify-end gap-2 p-6 pt-0 no-print">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button className="bg-violet-600 hover:bg-violet-700 text-white gap-2" onClick={handlePrint}>
-            <Download className="size-4" /> Download PDF
+          <Button className="bg-violet-600 hover:bg-violet-700 text-white gap-2" onClick={handlePrint} disabled={isGenerating}>
+            {isGenerating ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+            {isGenerating ? 'Generating...' : 'Download PDF'}
           </Button>
         </div>
       </DialogContent>
@@ -162,6 +191,7 @@ function PayslipDialog({
 }
 
 export default function PayrollPage() {
+  const navigate = useNavigate()
   const { can } = usePermissions()
   const [activeTab, setActiveTab] = useState('overview')
   const [isProcessing, setIsProcessing] = useState(false)
@@ -250,8 +280,8 @@ export default function PayrollPage() {
                 'Total Hours': row.totalHours,
                 'OT Hours': row.overtimeHours,
                 Status: row.status,
-                'Gross Pay': `$${row.gross.toFixed(2)}`,
-                'Net Pay': `$${row.net.toFixed(2)}`
+                'Gross Pay': fmt(row.gross),
+                'Net Pay': fmt(row.net)
               }))
               downloadCSV(exportData, `Payroll_Export_${format(today, 'MMM_yyyy')}`)
               toast.success('Payroll export downloaded successfully')
@@ -287,7 +317,7 @@ export default function PayrollPage() {
           <Button
             size="sm"
             className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shrink-0"
-            onClick={() => setActiveTab('employees')}
+            onClick={() => navigate('/app/timesheet')}
           >
             Review
           </Button>

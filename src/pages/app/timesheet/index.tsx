@@ -38,6 +38,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
+import { downloadCSV } from '@/utils/export'
 import type { TimesheetEntry } from '@/types'
 
 const STATUS_CONFIG = {
@@ -425,6 +426,27 @@ export default function TimesheetPage() {
 
   const { data: employees } = useEmployees()
   const { data: entries, isLoading } = useTimesheetEntries(selectedEmployee, startDate, endDate)
+
+  const handleExport = () => {
+    if (!entries?.length) {
+      toast.error('No timesheet data to export')
+      return
+    }
+    const exportData = entries.map(e => ({
+      Date: e.date,
+      Employee: e.employees ? `${e.employees.first_name} ${e.employees.last_name}` : 'Unknown',
+      'Start Time': e.start_time || '',
+      'End Time': e.end_time || '',
+      'Break (Mins)': e.break_minutes || 0,
+      'Total Hours': e.total_hours || 0,
+      'Overtime Hours': e.overtime_hours || 0,
+      Status: e.is_approved ? 'Approved' : 'Pending',
+      Notes: e.notes || ''
+    }))
+    downloadCSV(exportData, `timesheet_export_${startDate}_to_${endDate}`)
+    toast.success('Export downloaded successfully')
+  }
+
   const { mutateAsync: approveEntry } = useApproveTimesheetEntry()
   const { mutateAsync: bulkApprove } = useBulkApproveTimesheetEntries()
   const { mutateAsync: bulkCreate } = useBulkCreateTimesheetEntries()
@@ -546,7 +568,7 @@ export default function TimesheetPage() {
             <Wand2 className="size-4" />
             Auto-fill Week
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport}>
             <Download className="size-4" />
             Export
           </Button>

@@ -24,7 +24,6 @@ import SystemUsersPage from '@/pages/app/users'
 import AuditLogPage from '@/pages/app/audit'
 import { Spinner } from '@/components/ui/spinner'
 import { PermissionGuard } from '@/components/auth/PermissionGuard'
-import { FloatingAIAssistant } from '@/components/shared/ai-assistant'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore()
@@ -99,7 +98,6 @@ export default function AppWrapper() {
   return (
     <>
       <App />
-      <FloatingAIAssistant />
     </>
   )
 }

@@ -23,6 +23,7 @@ import { useAttendanceRange } from '@/hooks/use-attendance'
 import { useLeaveRequests } from '@/hooks/use-leaves'
 import { useAnnouncements } from '@/hooks/use-misc'
 import { useAuthStore } from '@/stores/auth.store'
+import { GamificationLeaderboard } from '@/components/dashboard/GamificationLeaderboard'
 import type { LeaveRequest } from '@/types'
 
 const DEPT_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)']
@@ -224,7 +225,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts row */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-4">
         {/* Attendance chart */}
         <motion.div initial="hidden" animate="visible" custom={4} variants={fadeUp} className="lg:col-span-2">
           <Card className="glass-card">
@@ -292,7 +293,7 @@ export default function DashboardPage() {
         </motion.div>
 
         {/* Department breakdown */}
-        <motion.div initial="hidden" animate="visible" custom={5} variants={fadeUp}>
+        <motion.div initial="hidden" animate="visible" custom={5} variants={fadeUp} className="col-span-1">
           <Card className="h-full glass-card">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold">By Department</CardTitle>
@@ -334,6 +335,11 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* Gamification Leaderboard */}
+        <motion.div initial="hidden" animate="visible" custom={5.5} variants={fadeUp} className="col-span-1">
+          <GamificationLeaderboard />
         </motion.div>
       </div>
 

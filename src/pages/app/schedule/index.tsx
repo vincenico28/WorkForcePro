@@ -3,8 +3,9 @@ import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isToday, isWeekend, addMonths, subMonths,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight, Plus, Loader2, X, Search, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Loader2, X, Search, Sparkles, Download } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { downloadCSV } from '@/utils/export'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule, useBulkCreateSchedule } from '@/hooks/use-schedules'
@@ -77,6 +78,27 @@ export default function SchedulePage() {
   }, [employees, selectedEmployee, selectedDepartment, searchQuery])
 
   const isLoading = empLoading || shiftsLoading || schedLoading
+
+  const handleExport = () => {
+    if (!schedules?.length) {
+      toast.error('No schedule data to export')
+      return
+    }
+    const exportData = schedules.map(s => {
+      const emp = employees?.find(e => e.id === s.employee_id)
+      const shift = shifts?.find(sh => sh.id === s.shift_id)
+      return {
+        Date: s.date,
+        Employee: emp ? `${emp.first_name} ${emp.last_name}` : 'Unknown',
+        Department: emp?.departments?.name || 'Unassigned',
+        'Shift Name': shift?.name || 'Custom',
+        'Start Time': shift?.start_time || '',
+        'End Time': shift?.end_time || '',
+      }
+    })
+    downloadCSV(exportData, `schedule_export_${startDate}_to_${endDate}`)
+    toast.success('Schedule exported successfully')
+  }
 
   const scheduleMap = useMemo(() => {
     const map = new Map<string, Schedule>()
@@ -222,6 +244,9 @@ Keep the response concise, formatted in markdown, and highly professional.`
               </Button>
               <Button variant="outline" className="gap-1.5 shrink-0 bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 hover:text-violet-700" onClick={handleAnalyzeRoster}>
                 <Sparkles className="size-4" /> AI Health Check
+              </Button>
+              <Button variant="outline" className="gap-1.5 shrink-0" onClick={handleExport}>
+                <Download className="size-4" /> Export
               </Button>
               <Button className="gap-1.5 shrink-0" onClick={() => setAssignOpen(true)}>
                 <Plus className="size-4" />Assign Shift
