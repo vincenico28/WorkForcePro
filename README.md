@@ -22,12 +22,12 @@ To ensure the absolute accuracy and integrity of attendance records, the system 
 
 ---
 
-## 🧩 Comprehensive System Modules
+## 🏗️ Comprehensive System Modules
 
-### 🗺️ 1. Command Center Dashboard
+### 📍 1. Command Center Dashboard
 - **Global Field Map:** A real-time, dark-themed interactive map (Leaflet) directly on the dashboard.
 - **Live Active Pins:** Employees currently on the clock appear as pulsing, glowing pins on the map.
-- **Geofence Visualization:** The organization's allowed radius is drawn on the map, allowing HR to visually verify who is working remotely vs. at HQ.
+- **Gamification Leaderboard:** A dynamic leaderboard highlighting top-performing employees based on attendance punctuality and hours worked, fostering healthy workplace competition.
 - **Real-Time KPIs:** Instant metrics for total workforce, present employees, active leaves, and late arrivals.
 
 ### 👥 2. Employee Directory & RBAC
@@ -36,14 +36,22 @@ To ensure the absolute accuracy and integrity of attendance records, the system 
 
 ### ⏱️ 3. Timesheet & Payroll Analytics
 - **Automated Aggregation:** Real-time aggregation of daily hours, calculating exact work duration, overtime, and late deductions.
-- **Ledger Security:** Timesheets are immutable. Only Super Admins with bypassed RLS can perform bulk corrections.
+- **Payroll Processing:** Automated calculation of Gross and Net pay using localized currency formatting (PHP Peso).
+- **CSV Reporting:** One-click CSV exports for timesheets and payroll cycles, generating ready-to-use spreadsheets for accounting.
 
-### 🏖️ 4. Advanced Leave Management
+### 🌴 4. Advanced Leave Management
 - **Automated Workflows:** Employees submit requests (Vacation, Sick, etc.) which instantly route to Managers for approval.
 - **Document Enforcement:** Sick leave requests strictly enforce the uploading of medical certificates (securely stored in Supabase Storage), ensuring compliance before approval.
+- **Export Capabilities:** Instantly export filtered leave requests for compliance auditing.
 
 ### 📅 5. Scheduling & Shifts
 - **Visual Roster:** Drag-and-drop style calendar for assigning employee shifts, ensuring perfect departmental coverage without overlaps.
+- **AI Auto-Fill & Health Check:** AI-powered schedule generation and roster analysis to prevent employee burnout and ensure optimal coverage.
+- **Schedule Export:** Download monthly schedules directly to CSV.
+
+### 💬 6. Real-Time Communications & Notifications
+- **Global Notification Hub:** Real-time bell notifications alerting managers of pending timesheet approvals, leave requests, and system anomalies.
+- **In-App Messaging (Foundation):** Core database schemas and real-time subscription infrastructure prepared for instantaneous peer-to-peer and channel-based chat.
 
 ---
 

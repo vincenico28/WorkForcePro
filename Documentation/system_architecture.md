@@ -22,6 +22,7 @@ graph TD
         SupaAuth["Supabase Auth\n(JWT Sessions)"]
         SupaDB[("PostgreSQL Database\n(Row Level Security)")]
         SupaStore["Supabase Storage\n(Object Buckets)"]
+        SupaRT["Supabase Realtime\n(WebSockets)"]
     end
 
     subgraph "AI Microservice Tier (Backend)"
@@ -37,6 +38,7 @@ graph TD
     UI <-->|"Authentication (OAuth)"| SupaAuth
     UI <-->|"CRUD Operations (REST)"| SupaDB
     UI <-->|"Document & Image Uploads"| SupaStore
+    UI <-->|"Live Notifications & Chat (WebSockets)"| SupaRT
     
     UI -->|"POST Image Payload (Base64)"| FastAPI
     FastAPI <-->|"Matrix Computations"| OpenCV
@@ -51,9 +53,9 @@ graph TD
 
 ### Tier Breakdown:
 1. **Client Tier (Vercel):** The user-facing React application. It handles routing, UI state, form validation, capturing webcam data, rendering live interactive Maps (Leaflet), and managing the context-aware Gemini AI chat assistant.
-2. **Data & Security Tier (Supabase):** The central hub for persistent state. It utilizes PostgreSQL with strict Row-Level Security (RLS) policies to ensure that users (Employees vs. HR) can only read/write data permitted by their cryptographic JWT role.
+2. **Data & Security Tier (Supabase):** The central hub for persistent state and real-time connectivity. It utilizes PostgreSQL with strict Row-Level Security (RLS) policies. It also leverages Supabase Realtime (WebSockets) for instantaneous notifications and in-app messaging, alongside Storage buckets for document hosting.
 3. **AI Microservice Tier (Render):** A stateless Python application designed specifically to handle heavy C++ matrix computations required for facial recognition. It is completely isolated from the database to ensure the frontend remains highly performant and scalable.
-4. **External LLM Services:** Integration with Google's Gemini API to power the conversational AI Assistant, enabling dynamic querying of HR data.
+4. **External LLM Services:** Integration with Google's Gemini API to power the conversational AI Assistant, enabling dynamic querying of HR data and automated schedule health-checks.
 
 ---
 
