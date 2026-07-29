@@ -216,7 +216,7 @@ export default function LandingPage() {
             initial="hidden" animate="visible" custom={2} variants={fadeUp}
             className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground"
           >
-            A comprehensive Capstone project redefining HR management. Featuring Live GPS Geofencing, Facial Recognition, Printable A4/CR80 Assets, and an elite suite of Google Gemini AI agents for scheduling, analytics, and policy evaluation.
+            A comprehensive Capstone project redefining HR management. Featuring Live GPS Geofencing, Facial Recognition,and an elite suite of AI agents for scheduling, analytics, and policy evaluation.
           </motion.p>
 
           <motion.div
