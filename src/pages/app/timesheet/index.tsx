@@ -20,7 +20,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -729,6 +729,7 @@ export default function TimesheetPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="size-7">
+                              {data.employee?.avatar_url && <AvatarImage src={data.employee.avatar_url} className="object-cover" />}
                               <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
                                 {`${data.employee?.first_name?.[0] ?? ''}${data.employee?.last_name?.[0] ?? ''}`}
                               </AvatarFallback>
@@ -816,6 +817,7 @@ export default function TimesheetPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="size-6">
+                          {entry.employees?.avatar_url && <AvatarImage src={entry.employees.avatar_url} className="object-cover" />}
                           <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
                             {`${entry.employees?.first_name?.[0] ?? ''}${entry.employees?.last_name?.[0] ?? ''}`}
                           </AvatarFallback>

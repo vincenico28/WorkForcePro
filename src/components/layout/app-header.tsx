@@ -16,7 +16,7 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription,
 } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotifications, useMarkNotificationsRead } from '@/hooks/use-misc'
@@ -105,6 +105,7 @@ export function AppHeader() {
         <Sheet>
           <SheetTrigger asChild>
             <Avatar className="size-8 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+              {employee?.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
               <AvatarFallback className="bg-primary text-xs text-primary-foreground">
                 {`${employee?.first_name?.[0] ?? ''}${employee?.last_name?.[0] ?? ''}`.toUpperCase() || 'U'}
               </AvatarFallback>
@@ -118,6 +119,7 @@ export function AppHeader() {
               <div className="space-y-6">
                 <div className="flex flex-col items-center gap-3">
                   <Avatar className="size-24">
+                    {employee?.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
                     <AvatarFallback className="bg-primary text-3xl text-primary-foreground">
                       {`${employee.first_name?.[0] ?? ''}${employee.last_name?.[0] ?? ''}`.toUpperCase()}
                     </AvatarFallback>

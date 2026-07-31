@@ -12,7 +12,7 @@ export function useTimesheetEntries(employeeId: string | undefined, startDate: s
     queryFn: async () => {
       let q = supabase
         .from('timesheet_entries')
-        .select('*, employees!employee_id(id, first_name, last_name, position, departments(name))')
+        .select('*, employees!employee_id(id, first_name, last_name, avatar_url, position, departments(name))')
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date', { ascending: true })

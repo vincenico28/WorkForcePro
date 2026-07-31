@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ModeToggle } from '@/components/mode-toggle'
 import { toast } from 'sonner'
 import { FaceRegistration } from '@/components/face-recognition/FaceRegistration'
@@ -27,6 +27,7 @@ export default function SettingsPage() {
     email: '',
     phone: '',
     position: '',
+    avatar_url: '',
   })
   const [isSavingProfile, setIsSavingProfile] = useState(false)
 
@@ -52,6 +53,7 @@ export default function SettingsPage() {
         email: employee.email ?? '',
         phone: employee.phone ?? '',
         position: employee.position ?? '',
+        avatar_url: employee.avatar_url ?? '',
       })
     }
   }, [employee?.id])
@@ -116,6 +118,7 @@ export default function SettingsPage() {
               <form onSubmit={handleSaveProfile} className="space-y-6">
                 <div className="flex items-center gap-4">
                   <Avatar className="size-16 rounded-2xl">
+                    {profile.avatar_url && <AvatarImage src={profile.avatar_url} className="object-cover" />}
                     <AvatarFallback className="rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/20 text-lg font-bold text-primary">
                       {`${profile.first_name?.[0] ?? ''}${profile.last_name?.[0] ?? ''}`}
                     </AvatarFallback>

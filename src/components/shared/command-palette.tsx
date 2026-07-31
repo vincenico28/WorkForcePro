@@ -8,7 +8,7 @@ import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput,
   CommandItem, CommandList, CommandSeparator, CommandShortcut,
 } from '@/components/ui/command'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { useEmployees } from '@/hooks/use-employees'
 
@@ -100,6 +100,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 className="gap-3"
               >
                 <Avatar className="size-7 rounded-lg">
+                  {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                   <AvatarFallback className="rounded-lg bg-gradient-to-br from-primary/20 to-violet-500/20 text-[10px] font-semibold text-primary">
                     {`${emp.first_name[0]}${emp.last_name?.[0] ?? ''}`}
                   </AvatarFallback>

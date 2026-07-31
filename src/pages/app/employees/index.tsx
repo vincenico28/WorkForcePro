@@ -12,7 +12,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
@@ -71,9 +71,13 @@ function IDCardDialog({ emp, open, onOpenChange }: { emp: Employee | null; open:
             {/* Photo Avatar */}
             <div className="absolute top-10 left-1/2 -translate-x-1/2">
               <div className="w-16 h-16 bg-gray-100 rounded-full border-4 border-white flex items-center justify-center overflow-hidden shadow-sm">
-                <span className="text-gray-400 font-bold text-2xl">
-                  {`${emp.first_name[0]}${emp.last_name?.[0] ?? ''}`}
-                </span>
+                {emp.avatar_url ? (
+                  <img src={emp.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-gray-400 font-bold text-2xl">
+                    {`${emp.first_name[0]}${emp.last_name?.[0] ?? ''}`}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -238,6 +242,7 @@ function OrgNode({ employee, allEmployees }: { employee: Employee; allEmployees:
         <div className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ring-4 ring-background ${employee.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
 
         <Avatar className="mx-auto mb-3 size-16 shadow-md ring-2 ring-background">
+          {employee.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
           <AvatarFallback className="bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white font-bold text-lg">
             {`${employee.first_name[0]}${employee.last_name?.[0] ?? ''}`}
           </AvatarFallback>
@@ -588,6 +593,7 @@ export default function EmployeesPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
                       <Avatar className="size-12 rounded-xl">
+                        {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                         <AvatarFallback className="rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 text-sm font-semibold text-primary">
                           {`${emp.first_name[0]}${emp.last_name?.[0] ?? ''}`}
                         </AvatarFallback>

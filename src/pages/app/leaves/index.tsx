@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
@@ -291,6 +291,7 @@ Please provide a short summary of the request, note any policy flags (like missi
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <Avatar className="size-10 shrink-0">
+              {leave.employees?.avatar_url && <AvatarImage src={leave.employees.avatar_url} className="object-cover" />}
               <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                 {`${leave.employees?.first_name?.[0] ?? ''}${leave.employees?.last_name?.[0] ?? ''}`}
               </AvatarFallback>
@@ -327,6 +328,13 @@ Please provide a short summary of the request, note any policy flags (like missi
 
         {leave.reason && (
           <p className="mt-3 text-xs text-muted-foreground line-clamp-2">"{leave.reason}"</p>
+        )}
+
+        {leave.status === 'rejected' && leave.review_notes && (
+          <div className="mt-3 rounded-md bg-red-50 p-2.5 dark:bg-red-950/50">
+            <p className="text-xs font-semibold text-red-600 dark:text-red-400">Rejection Reason</p>
+            <p className="mt-1 text-xs text-red-600/90 dark:text-red-400/90">"{leave.review_notes}"</p>
+          </div>
         )}
 
         {leave.attachment_url && (

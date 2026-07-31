@@ -11,7 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -529,6 +529,7 @@ export default function PayrollPage() {
                           <TableCell>
                             <div className="flex items-center gap-2.5">
                               <Avatar className="size-8">
+                                {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                                 <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                                   {`${emp.first_name[0]}${emp.last_name[0] ?? ''}`}
                                 </AvatarFallback>

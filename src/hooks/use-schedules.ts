@@ -28,7 +28,7 @@ export function useSchedules(startDate: string, endDate: string, employeeId?: st
     queryFn: async () => {
       let q = supabase
         .from('schedules')
-        .select('*, employees(id, first_name, last_name, position, departments(name)), shifts(*)')
+        .select('*, employees(id, first_name, last_name, avatar_url, position, departments(name)), shifts(*)')
         .gte('date', startDate)
         .lte('date', endDate)
         .order('date')

@@ -7,7 +7,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -360,6 +360,7 @@ export default function AnnouncementsPage() {
                 <DialogTitle className="text-xl">{viewingAnn.title}</DialogTitle>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground pt-2">
                   <Avatar className="size-6">
+                    {viewingAnn.employees?.avatar_url && <AvatarImage src={viewingAnn.employees.avatar_url} className="object-cover" />}
                     <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
                       {`${viewingAnn.employees?.first_name?.[0] ?? ''}${viewingAnn.employees?.last_name?.[0] ?? ''}`}
                     </AvatarFallback>
@@ -420,6 +421,7 @@ function AnnouncementCard({ ann, canManage, onEdit, onDelete, onView }: {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <Avatar className="size-6">
+                    {ann.employees?.avatar_url && <AvatarImage src={ann.employees.avatar_url} className="object-cover" />}
                     <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
                       {`${ann.employees?.first_name?.[0] ?? ''}${ann.employees?.last_name?.[0] ?? ''}`}
                     </AvatarFallback>

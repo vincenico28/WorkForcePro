@@ -1,6 +1,6 @@
 import { Trophy, Medal, Award, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useEmployees } from '@/hooks/use-employees'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -92,6 +92,7 @@ export function GamificationLeaderboard() {
                 </div>
 
                 <Avatar className="size-10 border-2 border-background shadow-sm">
+                  {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                   <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                     {emp.first_name[0]}{emp.last_name[0]}
                   </AvatarFallback>

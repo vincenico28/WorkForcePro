@@ -8,7 +8,7 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Calendar } from '@/components/ui/calendar'
@@ -498,6 +498,7 @@ export default function AttendancePage() {
                   return (
                     <div key={record.id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5">
                       <Avatar className="size-9 shrink-0">
+                        {record.employees?.avatar_url && <AvatarImage src={record.employees.avatar_url} className="object-cover" />}
                         <AvatarFallback className="bg-primary/10 text-xs text-primary">
                           {`${record.employees?.first_name?.[0] ?? ''}${record.employees?.last_name?.[0] ?? ''}`}
                         </AvatarFallback>
@@ -591,6 +592,7 @@ export default function AttendancePage() {
                   <div key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
                     <div className="flex items-center gap-3">
                       <Avatar className="size-8 shrink-0">
+                        {stats.employee?.avatar_url && <AvatarImage src={stats.employee.avatar_url} className="object-cover" />}
                         <AvatarFallback className="bg-primary/10 text-xs text-primary">
                           {`${stats.employee?.first_name?.[0] ?? ''}${stats.employee?.last_name?.[0] ?? ''}`}
                         </AvatarFallback>

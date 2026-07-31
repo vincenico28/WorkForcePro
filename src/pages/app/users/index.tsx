@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -174,6 +174,7 @@ export default function SystemUsersPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="size-9 rounded-lg">
+                            {user.employee?.avatar_url && <AvatarImage src={user.employee.avatar_url} className="object-cover" />}
                             <AvatarFallback className="rounded-lg bg-primary/10 text-primary font-medium text-xs">
                               {getInitials(user.employee?.first_name, user.employee?.last_name)}
                             </AvatarFallback>

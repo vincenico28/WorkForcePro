@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Mail, Phone, Calendar, Briefcase, Clock, Edit, Building2 } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Calendar, Briefcase, Clock, Edit, Building2, Camera, IdCard, Printer, Download } from 'lucide-react'
 import { format } from 'date-fns'
 import { useEmployee, useUpdateEmployee } from '@/hooks/use-employees'
 import { useEmployeeAttendance } from '@/hooks/use-attendance'
 import { useDepartments } from '@/hooks/use-misc'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { supabase } from '@/lib/supabase'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
@@ -49,6 +50,41 @@ export default function EmployeeDetailPage() {
     first_name: '', last_name: '', email: '', phone: '',
     position: '', department_id: '', role: 'employee', employment_type: 'full_time',
   })
+  const [idCardOpen, setIdCardOpen] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !employee) return
+    const file = e.target.files[0]
+    setUploadingAvatar(true)
+    
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${employee.id}-${Math.random()}.${fileExt}`
+      const filePath = `${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      await updateEmployee({
+        id: employee.id,
+        avatar_url: data.publicUrl
+      })
+
+      toast.success('Avatar updated')
+    } catch (err: any) {
+      toast.error('Error uploading avatar', { description: err.message })
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   const openEdit = () => {
     if (!employee) return
@@ -134,7 +170,8 @@ export default function EmployeeDetailPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex flex-col items-center text-center">
-                <Avatar className="size-20 rounded-2xl">
+                <Avatar className="size-20 rounded-2xl ring-4 ring-background shadow-xl">
+                  {employee.avatar_url && <AvatarImage src={employee.avatar_url} alt={employee.first_name} className="object-cover" />}
                   <AvatarFallback className="rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/20 text-xl font-bold text-primary">
                     {`${employee.first_name[0]}${employee.last_name[0] ?? ''}`}
                   </AvatarFallback>
@@ -181,10 +218,16 @@ export default function EmployeeDetailPage() {
                 </div>
               </div>
 
-              <Button variant="outline" className="mt-4 w-full gap-2" onClick={openEdit}>
-                <Edit className="size-4" />
-                Edit Profile
-              </Button>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Button variant="outline" className="w-full gap-2" onClick={openEdit}>
+                  <Edit className="size-4" />
+                  Edit Profile
+                </Button>
+                <Button variant="default" className="w-full gap-2" onClick={() => setIdCardOpen(true)}>
+                  <IdCard className="size-4" />
+                  ID Card
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -288,6 +331,27 @@ export default function EmployeeDetailPage() {
             </TabsList>
             
             <TabsContent value="profile">
+              <div className="mt-4 flex flex-col items-center justify-center space-y-3 pb-4">
+                <div className="relative group">
+                  <Avatar className="size-24 rounded-2xl ring-2 ring-primary/20">
+                    {employee.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
+                    <AvatarFallback className="rounded-2xl text-2xl font-bold bg-primary/10 text-primary">
+                      {`${employee.first_name[0]}${employee.last_name[0] ?? ''}`}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-2xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Camera className="size-6 text-white" />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                  </label>
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 backdrop-blur-sm">
+                      <span className="text-xs font-medium text-white animate-pulse">Uploading...</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Click to upload photo</p>
+              </div>
+
               <form onSubmit={handleSave} className="mt-2 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -366,6 +430,68 @@ export default function EmployeeDetailPage() {
               </div>
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+      {/* ID Card Generator Dialog */}
+      <Dialog open={idCardOpen} onOpenChange={setIdCardOpen}>
+        <DialogContent className="max-w-md bg-background/95 backdrop-blur border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle>Employee ID Card</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center py-6">
+            {/* The Badge Container */}
+            <div className="relative w-72 h-[420px] rounded-[1.5rem] bg-gradient-to-b from-primary to-primary/80 p-1 shadow-xl overflow-hidden print:shadow-none print:w-3.375in print:h-2.125in">
+              <div className="absolute top-0 right-0 p-4 opacity-20">
+                <Building2 className="size-32" />
+              </div>
+              <div className="relative h-full w-full rounded-[1.3rem] bg-card p-6 flex flex-col items-center border border-primary/20">
+                <div className="w-full flex justify-between items-start mb-6">
+                  <div>
+                    <h3 className="font-bold tracking-tight text-primary">Acme Corp</h3>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{employee.departments?.name ?? 'Headquarters'}</p>
+                  </div>
+                </div>
+
+                <Avatar className="size-32 rounded-full border-4 border-background shadow-lg mb-4 ring-2 ring-primary/20">
+                  {employee.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
+                  <AvatarFallback className="text-3xl font-bold bg-primary/10 text-primary">
+                    {`${employee.first_name[0]}${employee.last_name[0] ?? ''}`}
+                  </AvatarFallback>
+                </Avatar>
+
+                <h2 className="text-xl font-bold text-center leading-tight">
+                  {employee.first_name} {employee.last_name}
+                </h2>
+                <p className="text-sm font-medium text-primary mt-1 text-center">
+                  {employee.position ?? employee.role.replace('_', ' ')}
+                </p>
+
+                <div className="mt-auto w-full pt-4 border-t border-border flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ID Number</p>
+                    <p className="text-sm font-mono font-bold">{employee.employee_id || 'ID-PENDING'}</p>
+                  </div>
+                  {/* Faux Barcode generated using simple divs */}
+                  <div className="flex gap-[2px] h-8 items-end opacity-70">
+                    {[3,1,4,1,5,9,2,6,5,3,5].map((w, i) => (
+                      <div key={i} className="bg-foreground" style={{ width: `${w}px`, height: `${Math.max(40, w*10)}%` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-8 flex gap-3 w-full max-w-[288px]">
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => window.print()}>
+                <Printer className="size-4" />
+                Print
+              </Button>
+              <Button className="flex-1 gap-2" onClick={() => toast.success('Downloaded as PDF (Simulated)')}>
+                <Download className="size-4" />
+                Download
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

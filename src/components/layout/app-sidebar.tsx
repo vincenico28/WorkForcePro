@@ -19,7 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 
@@ -213,6 +213,7 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg" className="hover:bg-sidebar-accent" tooltip="Account">
                   <Avatar className="size-8 rounded-lg">
+                    {employee?.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
                     <AvatarFallback className="rounded-lg bg-sidebar-primary text-xs text-sidebar-primary-foreground">
                       {getInitials(employee?.first_name, employee?.last_name)}
                     </AvatarFallback>

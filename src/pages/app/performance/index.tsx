@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -453,6 +453,7 @@ export default function PerformancePage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-3">
                           <Avatar className="size-10 rounded-xl">
+                            {emp?.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                             <AvatarFallback className="rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 text-sm font-semibold text-primary">
                               {emp ? `${emp.first_name[0]}${emp.last_name[0]}` : '?'}
                             </AvatarFallback>
@@ -485,6 +486,33 @@ export default function PerformancePage() {
                           <p className="text-sm font-bold">{review.technical_rating?.toFixed(1) ?? '—'}</p>
                           <p className="text-[10px] text-muted-foreground">Technical</p>
                         </div>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {review.strengths && (
+                          <div>
+                            <p className="text-xs font-semibold text-primary">Strengths</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                              {review.strengths}
+                            </p>
+                          </div>
+                        )}
+                        {review.improvements && (
+                          <div>
+                            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Areas for Improvement</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                              {review.improvements}
+                            </p>
+                          </div>
+                        )}
+                        {review.goals && (
+                          <div>
+                            <p className="text-xs font-semibold text-blue-600 dark:text-blue-400">Goals</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                              {review.goals}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-3 flex items-center justify-between">

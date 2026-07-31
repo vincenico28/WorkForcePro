@@ -14,7 +14,7 @@ import { format, subDays } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
@@ -366,6 +366,7 @@ export default function DashboardPage() {
                 recentLeaves.map((lr: LeaveRequest) => (
                   <div key={lr.id} className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40">
                     <Avatar className="size-9 shrink-0">
+                      {lr.employees?.avatar_url && <AvatarImage src={lr.employees.avatar_url} className="object-cover" />}
                       <AvatarFallback className="bg-primary/10 text-xs text-primary">
                         {`${lr.employees?.first_name?.[0] ?? ''}${lr.employees?.last_name?.[0] ?? ''}`}
                       </AvatarFallback>

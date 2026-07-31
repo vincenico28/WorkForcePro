@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Maximize2 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import type { AttendanceRecord } from '@/types';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { supabase, ORG_ID } from '@/lib/supabase';
 
@@ -98,6 +98,7 @@ export function DailyAttendanceMap({ records }: DailyAttendanceMapProps) {
               <div className="flex flex-col gap-2 min-w-[150px]">
                 <div className="flex items-center gap-2">
                   <Avatar className="h-8 w-8">
+                    {record.employees?.avatar_url && <AvatarImage src={record.employees.avatar_url} className="object-cover" />}
                     <AvatarFallback className="text-xs">
                       {`${record.employees?.first_name?.[0] ?? ''}${record.employees?.last_name?.[0] ?? ''}`}
                     </AvatarFallback>

@@ -12,7 +12,7 @@ import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule, useBulkC
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -353,6 +353,7 @@ Keep the response concise, formatted in markdown, and highly professional.`
                     <td className="sticky left-0 z-10 bg-card p-2">
                       <div className="flex items-center gap-2">
                         <Avatar className="size-7 shrink-0">
+                          {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                           <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
                             {`${emp.first_name[0]}${emp.last_name[0] ?? ''}`}
                           </AvatarFallback>
@@ -435,6 +436,7 @@ Keep the response concise, formatted in markdown, and highly professional.`
                 return emp && shift ? (
                   <div key={sched.id} className="flex items-center gap-3 rounded-lg border border-border p-2.5">
                     <Avatar className="size-8 shrink-0">
+                      {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                       <AvatarFallback className="bg-primary/10 text-xs text-primary">
                         {`${emp.first_name[0]}${emp.last_name[0] ?? ''}`}
                       </AvatarFallback>
