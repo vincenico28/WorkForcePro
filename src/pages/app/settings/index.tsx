@@ -16,6 +16,7 @@ import { ModeToggle } from '@/components/mode-toggle'
 import { toast } from 'sonner'
 import { FaceRegistration } from '@/components/face-recognition/FaceRegistration'
 import { GeofenceSettings } from '@/components/settings/GeofenceSettings'
+import { BrandingSettings } from '@/components/settings/BrandingSettings'
 
 export default function SettingsPage() {
   const { employee, updateProfile, updatePassword } = useAuthStore()
@@ -103,7 +104,7 @@ export default function SettingsPage() {
           )}
           <TabsTrigger value="notifications" className="gap-1.5"><Bell className="size-3.5" />Notifications</TabsTrigger>
           <TabsTrigger value="security" className="gap-1.5"><Shield className="size-3.5" />Security</TabsTrigger>
-          <TabsTrigger value="organization" className="gap-1.5"><Building2 className="size-3.5" />Organization</TabsTrigger>
+          <TabsTrigger value="organization" className="gap-1.5"><Building2 className="size-3.5" />Branding & Org</TabsTrigger>
           <TabsTrigger value="appearance" className="gap-1.5"><Palette className="size-3.5" />Appearance</TabsTrigger>
         </TabsList>
 
@@ -345,7 +346,10 @@ export default function SettingsPage() {
         </TabsContent>
 
         {/* Organization */}
-        <TabsContent value="organization">
+        <TabsContent value="organization" className="space-y-4">
+          {employee?.role === 'super_admin' && (
+            <BrandingSettings />
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Organization</CardTitle>

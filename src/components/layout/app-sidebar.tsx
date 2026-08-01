@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLeaveRequests } from '@/hooks/use-leaves'
+import { useOrganization } from '@/hooks/use-organization'
 import { usePermissions } from '@/hooks/use-permissions'
 import type { Permission } from '@/lib/permissions'
 import {
@@ -89,6 +90,7 @@ export function AppSidebar() {
   const mainNav = useMemo(() => filterNav(NAV_MAIN), [can])
   const hrNav = useMemo(() => filterNav(NAV_HR), [can])
   const reportsNav = useMemo(() => filterNav(NAV_REPORTS), [can])
+  const { data: org } = useOrganization()
   const systemNav = useMemo(() => filterNav(NAV_SYSTEM), [can])
 
   const handleSignOut = async () => {
@@ -102,17 +104,25 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="hover:bg-sidebar-accent hover:scale-[1.02] transition-transform duration-200">
-              <Link to="/app/dashboard">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg overflow-hidden shadow-sm">
-                  <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="truncate text-sm font-semibold text-sidebar-foreground font-heading">WorkForce Pro</span>
-                  <span className="truncate text-xs text-sidebar-foreground/50">Nexus Technologies</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
+              <SidebarMenuButton size="lg" className="w-full justify-start gap-3 hover:bg-sidebar-accent/50" asChild>
+                <Link to="/app/dashboard">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg overflow-hidden shadow-sm">
+                    {org?.logo_url ? (
+                      <img src={org.logo_url} alt="Logo" className="size-full object-cover bg-white" />
+                    ) : (
+                      <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+                    )}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="truncate text-sm font-semibold text-sidebar-foreground font-heading">
+                      {org?.name || 'WorkForce Pro'}
+                    </span>
+                    <span className="truncate text-xs text-sidebar-foreground/50">
+                      Nexus Technologies
+                    </span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

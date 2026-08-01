@@ -24,6 +24,7 @@ import SystemUsersPage from '@/pages/app/users'
 import AuditLogPage from '@/pages/app/audit'
 import { Spinner } from '@/components/ui/spinner'
 import { PermissionGuard } from '@/components/auth/PermissionGuard'
+import { BrandingProvider } from '@/components/layout/BrandingProvider'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthStore()
@@ -96,8 +97,8 @@ function App() {
 
 export default function AppWrapper() {
   return (
-    <>
+    <BrandingProvider>
       <App />
-    </>
+    </BrandingProvider>
   )
 }
