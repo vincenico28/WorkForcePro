@@ -424,8 +424,14 @@ export default function TimesheetPage() {
     endDate: format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), 'yyyy-MM-dd'),
   }), [currentWeekStart])
 
-  const { data: employees } = useEmployees()
+  const { data: allEmployees } = useEmployees()
   const { data: entries, isLoading } = useTimesheetEntries(selectedEmployee, startDate, endDate)
+
+  const employees = useMemo(() => {
+    if (!allEmployees) return []
+    if (can.isSupervisor()) return allEmployees
+    return allEmployees.filter(e => e.id === employee?.id)
+  }, [allEmployees, can, employee?.id])
 
   const handleExport = () => {
     if (!entries?.length) {
@@ -695,22 +701,18 @@ export default function TimesheetPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(entries?.length ?? 0) === 0 ? (
+                {(employees?.length ?? 0) === 0 ? (
                   <TableRow>
                     <TableCell colSpan={weekDays.length + 3} className="text-center py-8 text-sm text-muted-foreground">
-                      No timesheet entries for this week
+                      No employees found to display
                     </TableCell>
                   </TableRow>
                 ) : (
-                  Object.entries(
-                    (entries || []).reduce((acc, e) => {
-                      const key = e.employee_id
-                      if (!acc[key]) acc[key] = { employee: e.employees, days: {} }
-                      acc[key].days[e.date] = e
-                      return acc
-                    }, {} as Record<string, { employee: any; days: Record<string, TimesheetEntry> }>)
-                  ).map(([empId, data]) => {
-                    const weekTotal = Object.values(data.days).reduce((sum, d) => sum + (d.total_hours || 0), 0)
+                  employees?.filter(emp => selectedEmployee ? emp.id === selectedEmployee : true).map((emp) => {
+                    const empId = emp.id
+                    const empEntries = entries?.filter(e => e.employee_id === empId) || []
+                    const weekTotal = empEntries.reduce((sum, d) => sum + (d.total_hours || 0), 0)
+                    
                     return (
                       <TableRow key={empId}>
                         {can.approveTimesheet() && (
@@ -729,17 +731,17 @@ export default function TimesheetPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="size-7">
-                              {data.employee?.avatar_url && <AvatarImage src={data.employee.avatar_url} className="object-cover" />}
+                              {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
                               <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
-                                {`${data.employee?.first_name?.[0] ?? ''}${data.employee?.last_name?.[0] ?? ''}`}
+                                {`${emp.first_name?.[0] ?? ''}${emp.last_name?.[0] ?? ''}`}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm font-medium">{data.employee?.first_name} {data.employee?.last_name}</span>
+                            <span className="text-sm font-medium">{emp.first_name} {emp.last_name}</span>
                           </div>
                         </TableCell>
                         {weekDays.map(day => {
                           const dateStr = format(day, 'yyyy-MM-dd')
-                          const entry = data.days[dateStr]
+                          const entry = empEntries.find(e => e.date === dateStr)
                           const isWeekendDay = isWeekend(day)
                           return (
                             <TableCell key={dateStr} className={`text-center ${isWeekendDay ? 'bg-muted/30' : ''}`}>

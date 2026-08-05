@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth.store'
 export function useTimesheetEntries(employeeId: string | undefined, startDate: string, endDate: string) {
   const { employee } = useAuthStore()
   return useQuery({
-    queryKey: ['timesheet-entries', employeeId, startDate, endDate],
+    queryKey: ['timesheet-entries', employeeId, employee?.id, startDate, endDate],
     queryFn: async () => {
       let q = supabase
         .from('timesheet_entries')
@@ -19,7 +19,7 @@ export function useTimesheetEntries(employeeId: string | undefined, startDate: s
 
       if (employeeId) {
         q = q.eq('employee_id', employeeId)
-      } else if (employee?.role === 'employee') {
+      } else if (employee && !['super_admin', 'admin', 'hr_manager', 'team_supervisor'].includes(employee.role || '')) {
         q = q.eq('employee_id', employee.id)
       }
 
