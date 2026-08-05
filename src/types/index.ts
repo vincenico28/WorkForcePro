@@ -83,7 +83,7 @@ export interface Schedule {
   employee_id: string
   shift_id?: string
   date: string
-  status: 'scheduled' | 'confirmed' | 'swapped' | 'cancelled'
+  status: 'scheduled' | 'confirmed' | 'swapped' | 'cancelled' | 'on_leave'
   notes?: string
   employees?: Employee
   shifts?: Shift

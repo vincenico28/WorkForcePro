@@ -110,7 +110,8 @@ export default function SchedulePage() {
   shifts?.forEach(s => { shiftColors[s.id] = { bg: s.color + '20', text: s.color } })
 
   const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const todaySchedules = schedules?.filter(s => s.date === todayStr) ?? []
+  const todaySchedules = schedules?.filter(s => s.date === todayStr && s.status !== 'on_leave') ?? []
+  const todayOnLeave = schedules?.filter(s => s.date === todayStr && s.status === 'on_leave') ?? []
 
   const handleAssign = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -372,7 +373,14 @@ Keep the response concise, formatted in markdown, and highly professional.`
 
                       return (
                         <td key={day.toISOString()} className={`p-0.5 text-center ${isWeekend(day) ? 'bg-muted/20' : ''}`}>
-                          {shift && colors && sched ? (
+                          {sched?.status === 'on_leave' ? (
+                            <div
+                              className="group/cell relative mx-auto flex size-6 items-center justify-center rounded text-[9px] font-bold cursor-pointer transition-opacity bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400"
+                              title="On Leave"
+                            >
+                              L
+                            </div>
+                          ) : shift && colors && sched ? (
                             <div
                               className="group/cell relative mx-auto flex size-6 items-center justify-center rounded text-[9px] font-bold cursor-pointer hover:opacity-80 transition-opacity"
                               style={{ background: colors.bg, color: colors.text }}
@@ -420,7 +428,7 @@ Keep the response concise, formatted in markdown, and highly professional.`
       </Card>
 
       {/* Bottom info cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold">Today's Assigned Shifts</CardTitle>
@@ -455,6 +463,39 @@ Keep the response concise, formatted in markdown, and highly professional.`
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       {shift.start_time.slice(0, 5)}–{shift.end_time.slice(0, 5)}
                     </span>
+                  </div>
+                ) : null
+              })
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Today's On Leave</CardTitle>
+            <CardDescription>Employees away on {format(new Date(), 'MMM d, yyyy')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {todayOnLeave.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No employees on leave today</p>
+            ) : (
+              todayOnLeave.slice(0, 5).map(sched => {
+                const emp = sched.employees
+                return emp ? (
+                  <div key={sched.id} className="flex items-center gap-3 rounded-lg border border-amber-200/50 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20 p-2.5">
+                    <Avatar className="size-8 shrink-0">
+                      {emp.avatar_url && <AvatarImage src={emp.avatar_url} className="object-cover" />}
+                      <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                        {`${emp.first_name[0]}${emp.last_name[0] ?? ''}`}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{emp.first_name} {emp.last_name}</p>
+                      <p className="text-[10px] text-muted-foreground">{emp.position}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-medium shrink-0 border-amber-200 text-amber-700 dark:border-amber-900 dark:text-amber-400">
+                      On Leave
+                    </Badge>
                   </div>
                 ) : null
               })

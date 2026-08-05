@@ -26,6 +26,8 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { useEmployees } from '@/hooks/use-employees'
 import { useTimesheetEntries } from '@/hooks/use-timesheets'
 import { useAttendanceRange } from '@/hooks/use-attendance'
+import { useLeaveRequests } from '@/hooks/use-leaves'
+import { usePerformanceReviews } from '@/hooks/use-performance'
 import { usePermissions } from '@/hooks/use-permissions'
 import { toast } from 'sonner'
 import { downloadCSV } from '@/utils/export'
@@ -37,12 +39,6 @@ const chartConfig = {
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(n)
-
-// Derive estimated gross from hours worked (using PHP 250/h average if no salary info)
-function estimateGross(totalHours: number, overtimeHours: number, baseHourly = 250) {
-  const regular = Math.max(0, totalHours - overtimeHours)
-  return regular * baseHourly + overtimeHours * baseHourly * 1.5
-}
 
 const DEDUCTION_RATE = 0.24 // flat 24% for simplicity
 
@@ -58,7 +54,7 @@ function PayslipDialog({
   period: string;
 }) {
   if (!data) return null
-  const { emp, totalHours, overtimeHours, gross, deductions, net } = data
+  const { emp, totalHours, regularHours, overtimeHours, paidLeaveHours, baseHourly, regularPay, overtimePay, paidLeavePay, performanceBonus, gross, deductions, net } = data
 
   const [isGenerating, setIsGenerating] = useState(false)
 
@@ -141,14 +137,28 @@ function PayslipDialog({
               <tbody className="divide-y divide-gray-100">
                 <tr>
                   <td className="py-3 px-4">Regular Base Pay</td>
-                  <td className="text-right py-3 px-4 text-gray-500">{Math.max(0, totalHours - overtimeHours).toFixed(1)}h</td>
-                  <td className="text-right py-3 px-4">{fmt(Math.max(0, totalHours - overtimeHours) * 250)}</td>
+                  <td className="text-right py-3 px-4 text-gray-500">{regularHours.toFixed(1)}h @ {baseHourly}/hr</td>
+                  <td className="text-right py-3 px-4">{fmt(regularPay)}</td>
                 </tr>
                 {overtimeHours > 0 && (
                   <tr>
                     <td className="py-3 px-4">Overtime Pay (1.5x)</td>
                     <td className="text-right py-3 px-4 text-gray-500">{overtimeHours.toFixed(1)}h</td>
-                    <td className="text-right py-3 px-4">{fmt(overtimeHours * 250 * 1.5)}</td>
+                    <td className="text-right py-3 px-4">{fmt(overtimePay)}</td>
+                  </tr>
+                )}
+                {paidLeaveHours > 0 && (
+                  <tr>
+                    <td className="py-3 px-4 text-emerald-600">Paid Leave</td>
+                    <td className="text-right py-3 px-4 text-gray-500">{paidLeaveHours.toFixed(1)}h</td>
+                    <td className="text-right py-3 px-4 text-emerald-600">{fmt(paidLeavePay)}</td>
+                  </tr>
+                )}
+                {performanceBonus > 0 && (
+                  <tr>
+                    <td className="py-3 px-4 text-violet-600 font-medium flex items-center gap-2"><TrendingUp className="size-4" /> Performance Bonus</td>
+                    <td className="text-right py-3 px-4 text-gray-500">Excellent Rating</td>
+                    <td className="text-right py-3 px-4 text-violet-600">{fmt(performanceBonus)}</td>
                   </tr>
                 )}
                 <tr className="bg-gray-50/50">
@@ -204,6 +214,8 @@ export default function PayrollPage() {
   const { data: employees, isLoading: empLoading } = useEmployees()
   const { data: currentEntries, isLoading: tsLoading } = useTimesheetEntries(undefined, monthStart, monthEnd)
   const { data: attendance } = useAttendanceRange(monthStart, monthEnd)
+  const { data: leaves, isLoading: leavesLoading } = useLeaveRequests()
+  const { data: performance, isLoading: perfLoading } = usePerformanceReviews()
 
   // 6-month trend
   const monthlyData = useMemo(() => {
@@ -220,16 +232,74 @@ export default function PayrollPage() {
       .filter(e => e.status === 'active')
       .map(emp => {
         const empEntries = (currentEntries ?? []).filter(t => t.employee_id === emp.id)
-        const totalHours = empEntries.reduce((s, t) => s + (t.total_hours ?? 0), 0)
+        
+        // 1. Timesheet Regular & Overtime
+        const timesheetTotalHours = empEntries.reduce((s, t) => s + (t.total_hours ?? 0), 0)
         const overtimeHours = empEntries.reduce((s, t) => s + (t.overtime_hours ?? 0), 0)
-        const gross = estimateGross(totalHours, overtimeHours)
+        const regularHours = Math.max(0, timesheetTotalHours - overtimeHours)
+
+        // 2. Paid Leave (assume 8 hrs/day)
+        const empLeaves = (leaves ?? []).filter(l => 
+          l.employee_id === emp.id && 
+          l.status === 'approved' && 
+          l.start_date.startsWith(monthStart.substring(0, 7)) // Current month approximation
+        )
+        const paidLeaveDays = empLeaves.reduce((acc, l) => {
+          if (l.leave_types?.is_paid) {
+             const start = new Date(l.start_date)
+             const end = new Date(l.end_date)
+             const diffTime = Math.abs(end.getTime() - start.getTime())
+             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
+             return acc + diffDays
+          }
+          return acc
+        }, 0)
+        const paidLeaveHours = paidLeaveDays * 8
+
+        // 3. Employee Hourly Rate
+        const baseHourly = Number((emp.salary_info as any)?.hourly_rate) || 250
+        
+        // 4. Base Pay Calculation
+        const regularPay = regularHours * baseHourly
+        const overtimePay = overtimeHours * baseHourly * 1.5
+        const paidLeavePay = paidLeaveHours * baseHourly
+
+        // 5. Performance Bonus
+        const empPerf = (performance ?? []).filter(p => 
+          p.employee_id === emp.id && 
+          p.created_at.startsWith(monthStart.substring(0, 7))
+        )
+        let performanceBonus = 0
+        if (empPerf.length > 0 && (empPerf[0].overall_rating ?? 0) >= 4.0) {
+          performanceBonus = 1000 // 1000 PHP bonus for > 4.0
+        }
+        
+        const gross = regularPay + overtimePay + paidLeavePay + performanceBonus
         const deductions = gross * DEDUCTION_RATE
         const net = gross - deductions
+        const totalHours = regularHours + overtimeHours + paidLeaveHours
         const approved = empEntries.filter(t => t.is_approved).length
         const status = empEntries.length === 0 ? 'no_data' : approved === empEntries.length ? 'ready' : 'pending'
-        return { emp, totalHours, overtimeHours, gross, deductions, net, status, entries: empEntries.length }
+        
+        return { 
+          emp, 
+          regularHours, 
+          overtimeHours, 
+          paidLeaveHours,
+          totalHours, 
+          baseHourly,
+          regularPay,
+          overtimePay,
+          paidLeavePay,
+          performanceBonus,
+          gross, 
+          deductions, 
+          net, 
+          status, 
+          entries: empEntries.length 
+        }
       })
-  }, [employees, currentEntries])
+  }, [employees, currentEntries, leaves, performance, monthStart])
 
   const totals = useMemo(() => {
     const gross = payrollRows.reduce((s, r) => s + r.gross, 0)
@@ -239,7 +309,7 @@ export default function PayrollPage() {
     return { gross, net, deductions, paid, total: payrollRows.length }
   }, [payrollRows])
 
-  const isLoading = empLoading || tsLoading
+  const isLoading = empLoading || tsLoading || leavesLoading || perfLoading
 
   const handleRunPayroll = async () => {
     setIsProcessing(true)
