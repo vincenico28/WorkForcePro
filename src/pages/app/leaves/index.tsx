@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { format } from 'date-fns'
+import { format, addDays } from 'date-fns'
 import {
-  Calendar, CheckCircle, XCircle, Clock, Plus, Filter, Download,
-  ChevronRight, Loader2, Search, Sparkles, FileImage
+  Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus, Filter, Download,
+  ChevronRight, Loader2, Search, Sparkles, FileImage, AlertCircle, FileUp
 } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus } from '@/hooks/use-leaves'
+import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus, useRequestCompliance, useUploadComplianceDocument } from '@/hooks/use-leaves'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuthStore } from '@/stores/auth.store'
@@ -29,6 +29,9 @@ import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { cn } from '@/lib/utils'
 import type { LeaveRequest } from '@/types'
 
 const STATUS_CONFIG: Record<string, { className: string; label: string; icon: React.ElementType }> = {
@@ -175,25 +178,43 @@ function RequestLeaveDialog() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Start Date *</Label>
-              <input
-                type="date"
-                value={form.start_date}
-                onChange={e => update('start_date', e.target.value)}
-                required
-                min={format(new Date(), 'yyyy-MM-dd')}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.start_date && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.start_date ? format(new Date(form.start_date), "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.start_date ? new Date(form.start_date) : undefined}
+                    onSelect={(d) => d && update('start_date', format(d, 'yyyy-MM-dd'))}
+                    disabled={(date) => date < addDays(new Date(), 6)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1.5">
               <Label>End Date *</Label>
-              <input
-                type="date"
-                value={form.end_date}
-                onChange={e => update('end_date', e.target.value)}
-                required
-                min={form.start_date || format(new Date(), 'yyyy-MM-dd')}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.end_date && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {form.end_date ? format(new Date(form.end_date), "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={form.end_date ? new Date(form.end_date) : undefined}
+                    onSelect={(d) => d && update('end_date', format(d, 'yyyy-MM-dd'))}
+                    disabled={(date) => date < (form.start_date ? new Date(form.start_date) : addDays(new Date(), 6))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           {calcDays() > 0 && selectedType && (
@@ -210,19 +231,17 @@ function RequestLeaveDialog() {
               </div>
             </div>
           )}
-          {isSickLeave && (
-            <div className="space-y-1.5">
-              <Label>Medical Certificate *</Label>
-              <input
-                type="file"
-                required
-                accept="image/*,.pdf"
-                onChange={e => setFile(e.target.files?.[0] || null)}
-                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground file:border-0 file:bg-primary file:text-primary-foreground file:text-sm file:font-medium file:mr-4 file:px-3 file:py-1 file:rounded-md shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-              <p className="text-[10px] text-muted-foreground">Required for Sick Leave (PDF, JPG, PNG)</p>
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label>Compliance Document {isSickLeave ? '*' : '(Optional)'}</Label>
+            <input
+              type="file"
+              required={isSickLeave}
+              accept="image/*,.pdf"
+              onChange={e => setFile(e.target.files?.[0] || null)}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground file:border-0 file:bg-primary file:text-primary-foreground file:text-sm file:font-medium file:mr-4 file:px-3 file:py-1 file:rounded-md shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            <p className="text-[10px] text-muted-foreground">Required for Sick Leave. Optional for others (PDF, JPG, PNG)</p>
+          </div>
           <div className="space-y-1.5">
             <Label>Reason</Label>
             <Textarea
@@ -244,12 +263,23 @@ function RequestLeaveDialog() {
   )
 }
 
-function LeaveCard({ leave, onAction }: { leave: LeaveRequest; onAction?: (id: string, status: string) => void }) {
+function LeaveCard({ 
+  leave, 
+  onAction,
+  onRequestCompliance,
+  onUploadCompliance 
+}: { 
+  leave: LeaveRequest; 
+  onAction?: (id: string, status: string) => void;
+  onRequestCompliance?: (id: string) => void;
+  onUploadCompliance?: (id: string, file: File) => Promise<void>;
+}) {
   const { can } = usePermissions()
   const cfg = STATUS_CONFIG[leave.status]
   const Icon = cfg?.icon ?? Clock
 
   const [certOpen, setCertOpen] = useState(false)
+  const [followUpOpen, setFollowUpOpen] = useState(false)
   const [evalOpen, setEvalOpen] = useState(false)
   const [evalResult, setEvalResult] = useState<string | null>(null)
   const [isEvaluating, setIsEvaluating] = useState(false)
@@ -341,14 +371,14 @@ Please provide a short summary of the request, note any policy flags (like missi
           <div className="mt-3">
             <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5" onClick={() => setCertOpen(true)}>
               <FileImage className="size-3" />
-              View Medical Certificate
+              View Attached Document
             </Button>
             <Dialog open={certOpen} onOpenChange={setCertOpen}>
               <DialogContent className="max-w-2xl bg-transparent border-none shadow-none text-white sm:rounded-xl">
                 <div className="flex flex-col items-center">
                   <div className="w-full bg-background rounded-xl shadow-2xl overflow-hidden p-2">
                     <div className="flex justify-between items-center mb-2 px-2">
-                      <h3 className="text-sm font-semibold text-foreground">Medical Certificate</h3>
+                      <h3 className="text-sm font-semibold text-foreground">Attached Document</h3>
                       <Button variant="ghost" size="sm" asChild>
                         <a href={leave.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground">
                           Open Original <ChevronRight className="size-3 ml-1" />
@@ -358,12 +388,64 @@ Please provide a short summary of the request, note any policy flags (like missi
                     {leave.attachment_url.toLowerCase().endsWith('.pdf') ? (
                       <iframe src={leave.attachment_url} className="w-full h-[60vh] rounded-lg border" />
                     ) : (
-                      <img src={leave.attachment_url} alt="Medical Certificate" className="w-full max-h-[80vh] object-contain rounded-lg" />
+                      <img src={leave.attachment_url} alt="Attached Document" className="w-full max-h-[80vh] object-contain rounded-lg" />
                     )}
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
+          </div>
+        )}
+
+        {leave.compliance_document_url && (
+          <div className="mt-3">
+            <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1.5 border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-900 dark:text-emerald-400 dark:bg-emerald-950/30" onClick={() => setFollowUpOpen(true)}>
+              <FileImage className="size-3" />
+              View Follow-Up Document
+            </Button>
+            <Dialog open={followUpOpen} onOpenChange={setFollowUpOpen}>
+              <DialogContent className="max-w-2xl bg-transparent border-none shadow-none text-white sm:rounded-xl">
+                <div className="flex flex-col items-center">
+                  <div className="w-full bg-background rounded-xl shadow-2xl overflow-hidden p-2">
+                    <div className="flex justify-between items-center mb-2 px-2">
+                      <h3 className="text-sm font-semibold text-foreground">Follow-Up Document</h3>
+                      <Button variant="ghost" size="sm" asChild>
+                        <a href={leave.compliance_document_url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground">
+                          Open Original <ChevronRight className="size-3 ml-1" />
+                        </a>
+                      </Button>
+                    </div>
+                    {leave.compliance_document_url.toLowerCase().endsWith('.pdf') ? (
+                      <iframe src={leave.compliance_document_url} className="w-full h-[60vh] rounded-lg border" />
+                    ) : (
+                      <img src={leave.compliance_document_url} alt="Follow-Up Document" className="w-full max-h-[80vh] object-contain rounded-lg" />
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+
+        {leave.compliance_requested && !leave.compliance_document_url && leave.status === 'pending' && (
+          <div className="mt-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3">
+            <div className="flex items-start gap-2 text-amber-800 dark:text-amber-400">
+              <AlertCircle className="size-4 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-semibold">Action Required</p>
+                <p className="text-xs mt-1">Please provide a follow-up document by {leave.compliance_due_date ? format(new Date(leave.compliance_due_date), 'MMM d, yyyy') : 'the due date'}.</p>
+                {leave.review_notes && <p className="text-xs italic mt-1 bg-amber-100/50 p-1.5 rounded text-amber-900 dark:text-amber-300">"{leave.review_notes}"</p>}
+              </div>
+            </div>
+            {!can.approveLeaves() && onUploadCompliance && (
+              <div className="mt-3 flex items-center gap-2">
+                <Input type="file" id={`upload-${leave.id}`} className="text-xs h-8" onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    onUploadCompliance(leave.id, e.target.files[0])
+                  }
+                }} />
+              </div>
+            )}
           </div>
         )}
 
@@ -397,24 +479,34 @@ Please provide a short summary of the request, note any policy flags (like missi
         )}
 
         {leave.status === 'pending' && onAction && can.approveLeaves() && (
-          <div className="mt-4 flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400"
-              onClick={() => onAction(leave.id, 'rejected')}
-            >
-              <XCircle className="mr-1.5 size-3.5" />
-              Reject
-            </Button>
-            <Button
-              size="sm"
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => onAction(leave.id, 'approved')}
-            >
-              <CheckCircle className="mr-1.5 size-3.5" />
-              Approve
-            </Button>
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex gap-2 w-full">
+              {onRequestCompliance && !leave.compliance_requested && (
+                <Button size="sm" variant="outline" className="flex-1 border-amber-200 text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:border-amber-900 dark:text-amber-400 dark:hover:bg-amber-950" onClick={() => onRequestCompliance(leave.id)}>
+                  <FileUp className="mr-1.5 size-3.5" />
+                  Request Doc
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2 w-full">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400"
+                onClick={() => onAction(leave.id, 'rejected')}
+              >
+                <XCircle className="mr-1.5 size-3.5" />
+                Reject
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => onAction(leave.id, 'approved')}
+              >
+                <CheckCircle className="mr-1.5 size-3.5" />
+                Approve
+              </Button>
+            </div>
           </div>
         )}
 
@@ -433,10 +525,42 @@ export default function LeavesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmAction, setConfirmAction] = useState<{ id: string, status: string } | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [complianceAction, setComplianceAction] = useState<string | null>(null)
+  const [complianceDate, setComplianceDate] = useState<Date | undefined>(undefined)
+  const [complianceNotes, setComplianceNotes] = useState('')
   const { employee } = useAuthStore()
   const { data: leaves, isLoading } = useLeaveRequests(activeTab)
   const { mutateAsync: updateStatus } = useUpdateLeaveStatus()
+  const { mutateAsync: requestCompliance } = useRequestCompliance()
+  const { mutateAsync: uploadCompliance } = useUploadComplianceDocument()
   const { data: leaveTypes } = useLeaveTypes()
+
+  const handleUploadCompliance = async (id: string, file: File) => {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `compliance_${Math.random().toString(36).substring(2)}.${fileExt}`
+      const { error: uploadErr } = await supabase.storage.from('leave_attachments').upload(`public/${fileName}`, file)
+      if (uploadErr) throw uploadErr
+      const { data: publicUrlData } = supabase.storage.from('leave_attachments').getPublicUrl(`public/${fileName}`)
+      await uploadCompliance({ id, compliance_document_url: publicUrlData.publicUrl })
+      toast.success('Document uploaded successfully')
+    } catch (err: any) {
+      toast.error('Failed to upload document', { description: err.message })
+    }
+  }
+
+  const executeComplianceRequest = async () => {
+    if (!complianceAction || !complianceDate) return
+    try {
+      await requestCompliance({ id: complianceAction, dueDate: complianceDate.toISOString(), notes: complianceNotes })
+      toast.success('Compliance request sent')
+      setComplianceAction(null)
+      setComplianceDate(undefined)
+      setComplianceNotes('')
+    } catch {
+      toast.error('Failed to send compliance request')
+    }
+  }
 
   const handleExport = () => {
     if (!leaves?.length) {
@@ -507,6 +631,36 @@ export default function LeavesPage() {
         </div>
       </div>
 
+      {/* Balances Overview */}
+      {balances && balances.length > 0 && (
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          {balances.map(b => {
+            const remaining = Math.max(0, (b.allocated_days || 0) - (b.used_days || 0))
+            const percent = ((b.used_days || 0) / (b.allocated_days || 1)) * 100
+            return (
+              <Card key={b.id} className="relative overflow-hidden border-border/50 bg-background/50 backdrop-blur">
+                <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <div className="size-16 rounded-full" style={{ background: b.leave_types?.color || '#ccc' }} />
+                </div>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <div className="size-2.5 rounded-full" style={{ background: b.leave_types?.color || '#ccc' }} />
+                    {b.leave_types?.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{remaining} <span className="text-sm font-normal text-muted-foreground">days left</span></div>
+                  <Progress value={percent} className="h-1.5 mt-3" />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {b.used_days} used out of {b.allocated_days}
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
       {/* Requests */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -564,7 +718,12 @@ export default function LeavesPage() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredLeaves.map(lr => (
                   <motion.div key={lr.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <LeaveCard leave={lr} onAction={handleAction} />
+                    <LeaveCard 
+                      leave={lr} 
+                      onAction={handleAction} 
+                      onRequestCompliance={setComplianceAction}
+                      onUploadCompliance={handleUploadCompliance}
+                    />
                   </motion.div>
                 ))}
               </div>
@@ -605,6 +764,43 @@ export default function LeavesPage() {
               >
                 Confirm {confirmAction?.status === 'approved' ? 'Approval' : 'Rejection'}
               </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Compliance Request Dialog */}
+      <Dialog open={!!complianceAction} onOpenChange={() => { setComplianceAction(null); setComplianceDate(undefined); setComplianceNotes(''); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Compliance Document</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            <div className="space-y-1.5">
+              <Label>Due Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !complianceDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 size-4" />
+                    {complianceDate ? format(complianceDate, 'PPP') : <span>Pick a due date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={complianceDate} onSelect={setComplianceDate} disabled={(date) => date < new Date()} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Instructions / Notes</Label>
+              <Textarea 
+                value={complianceNotes} 
+                onChange={e => setComplianceNotes(e.target.value)}
+                placeholder="E.g. Please provide a valid medical certificate by this date..."
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setComplianceAction(null); setComplianceDate(undefined); setComplianceNotes(''); }}>Cancel</Button>
+              <Button onClick={executeComplianceRequest} disabled={!complianceDate}>Send Request</Button>
             </div>
           </div>
         </DialogContent>

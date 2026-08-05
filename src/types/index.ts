@@ -151,6 +151,9 @@ export interface LeaveRequest {
   reviewed_at?: string
   review_notes?: string
   attachment_url?: string
+  compliance_requested?: boolean
+  compliance_due_date?: string
+  compliance_document_url?: string
   created_at: string
   updated_at: string
   employees?: Employee
@@ -193,10 +196,11 @@ export interface PerformanceReview {
   review_period_start: string
   review_period_end: string
   overall_rating?: number
-  goals_met?: number
-  communication_rating?: number
+  job_knowledge_rating?: number
+  work_quality_rating?: number
+  attendance_rating?: number
+  initiative_rating?: number
   teamwork_rating?: number
-  technical_rating?: number
   strengths?: string
   improvements?: string
   goals?: string

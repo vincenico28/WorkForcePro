@@ -570,10 +570,12 @@ export default function TimesheetPage() {
           <p className="text-sm text-muted-foreground">Track and approve work hours</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleAutoFillWeek} className="gap-1.5 border-violet-200 hover:bg-violet-50 hover:text-violet-700 dark:border-violet-800/50 dark:hover:bg-violet-900/30 dark:hover:text-violet-300">
-            <Wand2 className="size-4" />
-            Auto-fill Week
-          </Button>
+          {can.isSupervisor() && (
+            <Button variant="outline" size="sm" onClick={handleAutoFillWeek} className="gap-1.5 border-violet-200 hover:bg-violet-50 hover:text-violet-700 dark:border-violet-800/50 dark:hover:bg-violet-900/30 dark:hover:text-violet-300">
+              <Wand2 className="size-4" />
+              Auto-fill Week
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport}>
             <Download className="size-4" />
             Export

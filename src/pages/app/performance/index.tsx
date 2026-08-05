@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Star, TrendingUp, Target, Award, Plus, ChevronRight,
-  Users, CheckCircle, Clock, BarChart3, Loader2, Brain, Sparkles
+  Users, CheckCircle, Clock, BarChart3, Loader2, Brain, Sparkles, Search
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -113,10 +113,11 @@ function AIPerformanceInsights({ reviews }: { reviews: PerformanceReview[] | und
     // Anonymize and bundle data
     const data = reviews.map(r => ({
       overall: r.overall_rating,
-      communication: r.communication_rating,
+      knowledge: r.job_knowledge_rating,
+      quality: r.work_quality_rating,
+      attendance: r.attendance_rating,
       teamwork: r.teamwork_rating,
-      technical: r.technical_rating,
-      goals: r.goals_met,
+      initiative: r.initiative_rating,
       status: r.status
     })).filter(r => r.overall !== undefined)
 
@@ -199,6 +200,7 @@ export default function PerformancePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [newReviewOpen, setNewReviewOpen] = useState(false)
   const [comboboxOpen, setComboboxOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const { employee } = useAuthStore()
   const { can } = usePermissions()
   const { data: reviews, isLoading } = usePerformanceReviews()
@@ -210,10 +212,11 @@ export default function PerformancePage() {
     review_period_start: '',
     review_period_end: '',
     overall_rating: 3.5,
-    goals_met: 3.5,
-    communication_rating: 3.5,
+    job_knowledge_rating: 3.5,
+    work_quality_rating: 3.5,
+    attendance_rating: 3.5,
     teamwork_rating: 3.5,
-    technical_rating: 3.5,
+    initiative_rating: 3.5,
     strengths: '',
     improvements: '',
     goals: '',
@@ -237,11 +240,11 @@ export default function PerformancePage() {
   const radarData = useMemo(() => {
     if (!reviews?.length) return []
     const fields = [
-      { skill: 'Communication', key: 'communication_rating' as const },
+      { skill: 'Knowledge', key: 'job_knowledge_rating' as const },
+      { skill: 'Quality', key: 'work_quality_rating' as const },
+      { skill: 'Attendance', key: 'attendance_rating' as const },
       { skill: 'Teamwork', key: 'teamwork_rating' as const },
-      { skill: 'Technical', key: 'technical_rating' as const },
-      { skill: 'Goals', key: 'goals_met' as const },
-      { skill: 'Overall', key: 'overall_rating' as const },
+      { skill: 'Initiative', key: 'initiative_rating' as const },
     ]
     return fields.map(f => {
       const vals = reviews.filter(r => r[f.key]).map(r => (r[f.key] as number) * 20)
@@ -265,11 +268,24 @@ export default function PerformancePage() {
     }))
   }, [reviews])
 
+  const filteredReviews = useMemo(() => {
+    if (!reviews) return []
+    if (!searchQuery) return reviews
+    const q = searchQuery.toLowerCase()
+    return reviews.filter(r => {
+      const name = `${r.employees?.first_name} ${r.employees?.last_name}`.toLowerCase()
+      const dept = r.employees?.departments?.name?.toLowerCase() ?? ''
+      const pos = r.employees?.position?.toLowerCase() ?? ''
+      return name.includes(q) || dept.includes(q) || pos.includes(q)
+    })
+  }, [reviews, searchQuery])
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!employee) return
     try {
-      await createReview.mutateAsync({ ...form, reviewer_id: employee.id })
+      const calculatedOverall = (form.job_knowledge_rating + form.work_quality_rating + form.attendance_rating + form.teamwork_rating + form.initiative_rating) / 5;
+      await createReview.mutateAsync({ ...form, reviewer_id: employee.id, overall_rating: calculatedOverall })
       toast.success('Review created')
       setNewReviewOpen(false)
       setForm(f => ({ ...f, employee_id: '', strengths: '', improvements: '', goals: '' }))
@@ -433,17 +449,31 @@ export default function PerformancePage() {
 
         {/* Reviews Tab */}
         <TabsContent value="employees" className="mt-4">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by name, role, or department..."
+                className="pl-9 h-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
           {isLoading ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-40" />)}
             </div>
-          ) : reviews?.length === 0 ? (
+          ) : filteredReviews.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">No reviews yet</CardContent>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                {searchQuery ? 'No reviews match your search' : 'No reviews yet'}
+              </CardContent>
             </Card>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {reviews?.map(review => {
+              {filteredReviews.map(review => {
                 const st = REVIEW_STATUS[review.status] ?? REVIEW_STATUS.draft
                 const Icon = st.icon
                 const emp = review.employees
@@ -477,14 +507,26 @@ export default function PerformancePage() {
                         </div>
                       )}
 
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        <div className="rounded-lg bg-muted/50 p-2 text-center">
-                          <p className="text-sm font-bold">{review.goals_met?.toFixed(1) ?? '—'}</p>
-                          <p className="text-[10px] text-muted-foreground">Goals met</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="flex-1 min-w-[30%] rounded-lg bg-muted/50 p-1.5 text-center">
+                          <p className="text-xs font-bold">{review.job_knowledge_rating?.toFixed(1) ?? '—'}</p>
+                          <p className="text-[9px] text-muted-foreground leading-tight">Knowledge</p>
                         </div>
-                        <div className="rounded-lg bg-muted/50 p-2 text-center">
-                          <p className="text-sm font-bold">{review.technical_rating?.toFixed(1) ?? '—'}</p>
-                          <p className="text-[10px] text-muted-foreground">Technical</p>
+                        <div className="flex-1 min-w-[30%] rounded-lg bg-muted/50 p-1.5 text-center">
+                          <p className="text-xs font-bold">{review.work_quality_rating?.toFixed(1) ?? '—'}</p>
+                          <p className="text-[9px] text-muted-foreground leading-tight">Quality</p>
+                        </div>
+                        <div className="flex-1 min-w-[30%] rounded-lg bg-muted/50 p-1.5 text-center">
+                          <p className="text-xs font-bold">{review.attendance_rating?.toFixed(1) ?? '—'}</p>
+                          <p className="text-[9px] text-muted-foreground leading-tight">Attendance</p>
+                        </div>
+                        <div className="flex-1 min-w-[30%] rounded-lg bg-muted/50 p-1.5 text-center">
+                          <p className="text-xs font-bold">{review.teamwork_rating?.toFixed(1) ?? '—'}</p>
+                          <p className="text-[9px] text-muted-foreground leading-tight">Teamwork</p>
+                        </div>
+                        <div className="flex-1 min-w-[30%] rounded-lg bg-muted/50 p-1.5 text-center">
+                          <p className="text-xs font-bold">{review.initiative_rating?.toFixed(1) ?? '—'}</p>
+                          <p className="text-[9px] text-muted-foreground leading-tight">Initiative</p>
                         </div>
                       </div>
 
@@ -610,13 +652,22 @@ export default function PerformancePage() {
                 />
               </div>
             </div>
-            <div className="space-y-3 rounded-lg border border-border p-3">
-              <p className="text-xs font-medium text-muted-foreground">RATINGS</p>
-              <RatingInput label="Overall Rating" value={form.overall_rating} onChange={v => setForm(f => ({ ...f, overall_rating: v }))} />
-              <RatingInput label="Goals Met" value={form.goals_met} onChange={v => setForm(f => ({ ...f, goals_met: v }))} />
-              <RatingInput label="Communication" value={form.communication_rating} onChange={v => setForm(f => ({ ...f, communication_rating: v }))} />
-              <RatingInput label="Teamwork" value={form.teamwork_rating} onChange={v => setForm(f => ({ ...f, teamwork_rating: v }))} />
-              <RatingInput label="Technical" value={form.technical_rating} onChange={v => setForm(f => ({ ...f, technical_rating: v }))} />
+            <div className="space-y-3 rounded-lg border border-border p-3 bg-muted/30">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-muted-foreground">SPECIFIC RATINGS</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase text-muted-foreground font-semibold">Auto-Calculated Overall:</span>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
+                    <Star className="mr-1 size-3 fill-primary text-primary" />
+                    {((form.job_knowledge_rating + form.work_quality_rating + form.attendance_rating + form.teamwork_rating + form.initiative_rating) / 5).toFixed(1)}
+                  </Badge>
+                </div>
+              </div>
+              <RatingInput label="Job Knowledge" value={form.job_knowledge_rating} onChange={v => setForm(f => ({ ...f, job_knowledge_rating: v }))} />
+              <RatingInput label="Work Quality" value={form.work_quality_rating} onChange={v => setForm(f => ({ ...f, work_quality_rating: v }))} />
+              <RatingInput label="Attendance & Punctuality" value={form.attendance_rating} onChange={v => setForm(f => ({ ...f, attendance_rating: v }))} />
+              <RatingInput label="Communication & Teamwork" value={form.teamwork_rating} onChange={v => setForm(f => ({ ...f, teamwork_rating: v }))} />
+              <RatingInput label="Initiative & Proactivity" value={form.initiative_rating} onChange={v => setForm(f => ({ ...f, initiative_rating: v }))} />
             </div>
             <div className="space-y-1.5">
               <Label>Strengths</Label>
