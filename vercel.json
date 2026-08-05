@@ -1,4 +1,9 @@
 {
+  "build": {
+    "env": {
+      "UV_LINK_MODE": "copy"
+    }
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
