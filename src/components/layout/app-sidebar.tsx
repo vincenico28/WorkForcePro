@@ -110,15 +110,15 @@ export function AppSidebar() {
                     {org?.logo_url ? (
                       <img src={org.logo_url} alt="Logo" className="size-full object-cover bg-white" />
                     ) : (
-                      <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+                      <img src="/Favicon.wf.gif" alt="Logo" className="size-full object-cover" />
                     )}
                   </div>
                   <div className="flex flex-col">
                     <span className="truncate text-sm font-semibold text-sidebar-foreground font-heading">
-                      {org?.name || 'WorkForce Pro'}
+                      {org?.name || 'Priority Handling Logistics,Inc.'}
                     </span>
                     <span className="truncate text-xs text-sidebar-foreground/50">
-                      Nexus Technologies
+                      Priority Handling Logistics,Inc.
                     </span>
                   </div>
                 </Link>

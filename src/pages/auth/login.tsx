@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -17,17 +18,47 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
+  const [otpSent, setOtpSent] = useState(false)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password) return
     setIsLoading(true)
+
+    // Authenticate user with their credentials
     const { error } = await signIn(email, password)
-    setIsLoading(false)
+    
     if (error) {
+      setIsLoading(false)
       toast.error('Sign in failed', { description: error })
-    } else {
-      navigate('/app/dashboard')
+      return
     }
+
+    // Check if the account belongs to a higher-up / management role
+    const currentEmp = useAuthStore.getState().employee
+    const isHigherUp = currentEmp && ['super_admin', 'admin', 'hr_manager', 'team_supervisor'].includes(currentEmp.role)
+
+    if (isHigherUp) {
+      // Automatically mandate Magic Link authentication for higher-ups
+      await useAuthStore.getState().signOut()
+      const { error: otpError } = await supabase.auth.signInWithOtp({ email })
+      setIsLoading(false)
+
+      if (otpError) {
+        toast.error('Failed to send secure login link', { description: otpError.message })
+        return
+      }
+
+      setOtpSent(true)
+      toast.success('Security Notice', { 
+        description: 'Management accounts require Magic Link authentication. A secure login link has been sent to your email.' 
+      })
+      return
+    }
+
+    // Regular employee login proceeds directly to dashboard
+    setIsLoading(false)
+    navigate('/app/dashboard')
   }
 
   return (
@@ -36,9 +67,9 @@ export default function LoginPage() {
       <div className="hidden flex-col justify-between bg-gradient-to-br from-sidebar via-sidebar to-primary/30 p-12 lg:flex lg:w-[45%]">
         <Link to="/" className="flex items-center gap-2.5">
           <div className="flex size-8 items-center justify-center rounded-lg overflow-hidden">
-            <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+            <img src="/Favicon.wf.gif" alt="Logo" className="size-full object-cover" />
           </div>
-          <span className="text-lg font-semibold text-sidebar-foreground">WorkForce<span className="text-sidebar-primary">Pro</span></span>
+          <span className="text-lg font-semibold text-sidebar-foreground">Priority Handling Logistics,Inc.</span>
         </Link>
 
         <div className="space-y-6">
@@ -70,7 +101,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-xs text-sidebar-foreground/40">© 2026 WorkForce Pro, Inc.</p>
+        <p className="text-xs text-sidebar-foreground/40">© 2026 Priority Handling Logistics, Inc.</p>
       </div>
 
       {/* Right panel */}
@@ -89,67 +120,119 @@ export default function LoginPage() {
           <div className="mb-8 text-center lg:hidden">
             <Link to="/" className="flex items-center justify-center gap-2.5">
               <div className="flex size-9 items-center justify-center rounded-xl overflow-hidden">
-                <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+                <img src="/Favicon.wf.gif" alt="Logo" className="size-full object-cover" />
               </div>
-              <span className="text-xl font-bold">WorkForce<span className="text-primary">Pro</span></span>
+              <span className="text-xl font-bold">Priority Handling Logistics,Inc.</span>
             </Link>
           </div>
 
           <Card className="border-border shadow-xl shadow-black/5">
             <CardHeader className="space-y-1 pb-6">
-              <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-              <CardDescription>Sign in to your WorkForce Pro account</CardDescription>
+              <CardTitle className="text-2xl font-bold">
+                {otpSent ? 'Check your email' : 'Welcome back'}
+              </CardTitle>
+              <CardDescription>
+                {otpSent 
+                  ? 'We sent a secure magic link to sign in to your administrator account' 
+                  : 'Sign in to your Priority Handling Logistics,Inc. account'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@company.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <Link to="/forgot-password" className="text-xs text-primary hover:underline">
-                      Forgot password?
-                    </Link>
+              {otpSent ? (
+                <div className="space-y-6 text-center py-2">
+                  <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Building2 className="size-7" />
                   </div>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="current-password"
-                      required
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  <div className="space-y-2">
+                    <p className="text-sm text-foreground">
+                      A login link has been sent to:
+                    </p>
+                    <p className="font-semibold text-primary">{email}</p>
+                    <p className="text-xs text-muted-foreground pt-2">
+                      Higher-level management accounts require email verification for enhanced security. Click the link in your email to access the dashboard.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={async () => {
+                        setIsLoading(true)
+                        const { error } = await supabase.auth.signInWithOtp({ email })
+                        setIsLoading(false)
+                        if (error) {
+                          toast.error('Resend failed', { description: error.message })
+                        } else {
+                          toast.success('Magic link resent!')
+                        }
+                      }}
+                      disabled={isLoading}
                     >
-                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
+                      {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                      Resend Magic Link
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      className="w-full text-xs text-muted-foreground"
+                      onClick={() => setOtpSent(false)}
+                    >
+                      Use another account
+                    </Button>
                   </div>
                 </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@company.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
 
-                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-                  {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                  Sign In
-                </Button>
-              </form>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <Link to="/forgot-password" className="text-xs text-primary hover:underline">
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        autoComplete="current-password"
+                        required
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                    Sign In
+                  </Button>
+                </form>
+              )}
             </CardContent>
-
           </Card>
         </motion.div>
       </div>

@@ -50,7 +50,7 @@ export default function SignupPage() {
             <Building2 className="size-4 text-primary-foreground" />
           </div>
           <span className="text-lg font-semibold text-sidebar-foreground">
-            WorkForce<span className="text-sidebar-primary">Pro</span>
+            Priority Handling Logistics,Inc.
           </span>
         </Link>
 
@@ -61,7 +61,7 @@ export default function SignupPage() {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl font-extrabold leading-tight text-sidebar-foreground">
-              Empower your career with WorkForce Pro
+              Empower your career with Priority Handling Logistics,Inc.
             </h1>
             <p className="mt-4 text-sidebar-foreground/70">
               Join your team, manage schedules, request leaves, track your timesheets, and view performance insights in one unified dashboard.
@@ -83,7 +83,7 @@ export default function SignupPage() {
           </div>
         </div>
 
-        <p className="text-xs text-sidebar-foreground/40">© 2025 WorkForce Pro, Inc.</p>
+        <p className="text-xs text-sidebar-foreground/40">© 2025 PRIORITY HANDLING LOGISTICS, INC., Inc.</p>
       </div>
 
       {/* Right panel */}
@@ -108,7 +108,7 @@ export default function SignupPage() {
                 <Building2 className="size-5 text-primary-foreground" />
               </div>
               <span className="text-xl font-bold">
-                WorkForce<span className="text-primary">Pro</span>
+                PRIORITY HANDLING LOGISTICS, INC.
               </span>
             </Link>
           </div>

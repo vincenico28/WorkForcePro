@@ -97,7 +97,7 @@ function PayslipDialog({
                 <p className="text-sm text-gray-500 mt-1">Pay Period: {period}</p>
               </div>
               <div className="text-right">
-                <h3 className="font-bold text-xl text-violet-600">Workforce Pro</h3>
+                <h3 className="font-bold text-xl text-violet-600">Priority Handling Logistics,Inc.</h3>
                 <p className="text-sm text-gray-500">123 Corporate Blvd.</p>
                 <p className="text-sm text-gray-500">San Francisco, CA 94103</p>
               </div>

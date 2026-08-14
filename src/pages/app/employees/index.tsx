@@ -65,7 +65,7 @@ function IDCardDialog({ emp, open, onOpenChange }: { emp: Employee | null; open:
           <div className="print-area w-[2.125in] h-[3.375in] bg-white rounded-xl shadow-2xl overflow-hidden relative flex flex-col mx-auto shrink-0 transform scale-[1.5] sm:scale-[1.8] transform-origin-top">
             {/* Header / Brand Banner */}
             <div className="bg-violet-600 h-16 w-full flex items-center justify-center pt-2">
-              <h2 className="text-white font-black text-sm tracking-widest uppercase">Workforce Pro</h2>
+              <h2 className="text-white font-black text-sm tracking-widest uppercase">Priority Handling Logistics,Inc.</h2>
             </div>
             
             {/* Photo Avatar */}

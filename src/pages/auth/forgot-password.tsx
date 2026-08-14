@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary">
             <Building2 className="size-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold">WorkForce<span className="text-primary">Pro</span></span>
+          <span className="text-xl font-bold">Priority Handling Logistics,Inc.</span>
         </div>
 
         <Card className="shadow-xl shadow-black/5">

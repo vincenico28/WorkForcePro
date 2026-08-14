@@ -83,7 +83,7 @@ const TESTIMONIALS = [
     title: 'VP People Operations, Lightwave Inc.',
     avatar: 'RK',
     rating: 5,
-    text: 'WorkForce Pro transformed how we manage our 800+ distributed team. The AI scheduling alone saved us 15 hours per week in manual coordination.',
+    text: 'Priority Handling Logistics,Inc. transformed how we manage our 800+ distributed team. The AI scheduling alone saved us 15 hours per week in manual coordination.',
     color: 'from-indigo-500 to-purple-600',
   },
   {
@@ -122,7 +122,7 @@ const FAQS = [
     a: 'The AI is trained on your workforce data and HR policies. It answers natural language queries, generates reports, predicts attendance patterns, and surfaces proactive insights about your workforce.',
   },
   {
-    q: 'What security certifications does WorkForce Pro hold?',
+    q: 'What security certifications does Priority Handling Logistics,Inc. hold?',
     a: 'We are SOC 2 Type II certified, GDPR compliant, and ISO 27001 certified. All data is encrypted in transit (TLS 1.3) and at rest (AES-256). We support SSO/SAML 2.0 for Enterprise plans.',
   },
   {
@@ -148,9 +148,9 @@ export default function LandingPage() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link to="/" className="flex items-center gap-2.5">
             <div className="flex size-8 items-center justify-center rounded-lg overflow-hidden">
-              <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+              <img src="/Favicon.wf.gif" alt="Logo" className="size-full object-cover" />
             </div>
-            <span className="text-lg font-semibold tracking-tight">WorkForce<span className="text-primary">Pro</span></span>
+            <span className="text-lg font-semibold tracking-tight">Priority Handling Logistics,Inc.</span>
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
@@ -243,7 +243,7 @@ export default function LandingPage() {
               <div className="size-3 rounded-full bg-warning/60" />
               <div className="size-3 rounded-full bg-success/60" />
               <div className="ml-4 flex-1 rounded-md bg-background/60 px-3 py-1 text-left text-xs text-muted-foreground">
-                app.workforcepro.com/dashboard
+                app.Priority Handling Logistics,Inc..com/dashboard
               </div>
             </div>
             <div className="bg-muted/20 p-6">
@@ -410,7 +410,7 @@ export default function LandingPage() {
               <TrendingUp className="mx-auto mb-4 size-10 opacity-80" />
               <h2 className="text-4xl font-extrabold tracking-tight">Ready to transform your workforce?</h2>
               <p className="mx-auto mt-4 max-w-xl text-lg opacity-80">
-                Join 1,200+ companies using WorkForce Pro to manage their most important asset — their people.
+                Join 1,200+ companies using Priority Handling Logistics,Inc. to manage their most important asset — their people.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link to="/login">
@@ -432,9 +432,9 @@ export default function LandingPage() {
             <div className="md:col-span-2">
               <Link to="/" className="flex items-center gap-2.5">
                 <div className="flex size-8 items-center justify-center rounded-lg overflow-hidden">
-                  <img src="/hr-manager.png" alt="Logo" className="size-full object-cover" />
+                  <img src="/Favicon.wf.gif" alt="Logo" className="size-full object-cover" />
                 </div>
-                <span className="text-lg font-semibold">WorkForce<span className="text-primary">Pro</span></span>
+                <span className="text-lg font-semibold">Priority Handling Logistics,Inc.</span>
               </Link>
               <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
                 Enterprise workforce management platform powering over 50,000 employees across 1,200+ organizations worldwide.
@@ -472,7 +472,7 @@ export default function LandingPage() {
           </div>
           <Separator className="my-10" />
           <div className="flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
-            <span>© {new Date().getFullYear()} WorkForce Pro, Inc. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} Priority Handling Logistics,Inc. All rights reserved.</span>
             <div className="flex gap-6">
               <a href="#" className="hover:text-foreground">Privacy</a>
               <a href="#" className="hover:text-foreground">Terms</a>

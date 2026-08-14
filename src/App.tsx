@@ -35,7 +35,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10">
             <Spinner className="size-6 text-primary" />
           </div>
-          <p className="text-sm text-muted-foreground">Loading WorkForce Pro...</p>
+          <p className="text-sm text-muted-foreground">Loading Priority Handling Logistics,Inc....</p>
         </div>
       </div>
     )
