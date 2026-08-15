@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TableSkeleton } from '@/components/ui/skeleton-table'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -682,8 +683,8 @@ export default function TimesheetPage() {
             </CardHeader>
             <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-4 space-y-2">
-              {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
+            <div className="p-4">
+              <TableSkeleton columns={10} rows={7} withHeader={false} />
             </div>
           ) : (
             <Table>

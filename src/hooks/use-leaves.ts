@@ -16,8 +16,13 @@ export function useLeaveRequests(status?: string) {
         .from('leave_requests')
         .select('*, employees!leave_requests_employee_id_fkey(id, first_name, last_name, avatar_url, position, departments(name)), leave_types(*)')
         .order('created_at', { ascending: false })
-      if (status && status !== 'all') q = q.eq('status', status)
-      
+      if (status && status !== 'all') {
+        if (status === 'pending') {
+          q = q.in('status', ['pending', 'pending_supervisor', 'pending_hr'])
+        } else {
+          q = q.eq('status', status)
+        }
+      }
       if (employee?.role === 'employee') {
         q = q.eq('employee_id', employee.id)
       }
@@ -139,6 +144,29 @@ export function useUploadComplianceDocument() {
       return data
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['leaves'] }),
+  })
+}
+
+export function useCancelLeave() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('leave_requests')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leaves'] })
+      qc.invalidateQueries({ queryKey: ['leave-balances'] })
+    },
   })
 }
 

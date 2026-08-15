@@ -88,12 +88,12 @@ export function AppHeader() {
         <Button
           variant="ghost"
           size="sm"
-          className="hidden gap-2 text-muted-foreground md:flex"
+          className="gap-2 text-muted-foreground bg-muted/50 hover:bg-muted"
           onClick={() => setCmdOpen(true)}
         >
           <Search className="size-4" />
-          <span className="text-xs">Search...</span>
-          <kbd className="pointer-events-none rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+          <span className="hidden text-xs sm:inline-block">Search...</span>
+          <kbd className="hidden sm:inline-block pointer-events-none rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
             ⌘K
           </kbd>
         </Button>

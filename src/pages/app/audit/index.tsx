@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Shield, Search, Loader2 } from 'lucide-react'
+import { Shield, Search } from 'lucide-react'
 import { useAuditLogs } from '@/hooks/use-audit'
 import { usePermissions } from '@/hooks/use-permissions'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Table,
@@ -14,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { TableSkeleton } from '@/components/ui/skeleton-table'
 import { Button } from '@/components/ui/button'
 import { Navigate } from 'react-router-dom'
 
@@ -83,62 +83,60 @@ export default function AuditLogPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[180px]">Timestamp</TableHead>
-                  <TableHead>User / Employee</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Resource</TableHead>
-                  <TableHead>Resource ID</TableHead>
-                  <TableHead className="text-right">IP Address</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+          {isLoading ? (
+            <TableSkeleton columns={6} rows={10} withHeader={false} />
+          ) : (
+            <div className="rounded-md border border-border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      <Loader2 className="size-6 animate-spin mx-auto text-muted-foreground" />
-                    </TableCell>
+                    <TableHead className="w-[180px]">Timestamp</TableHead>
+                    <TableHead>User / Employee</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Resource</TableHead>
+                    <TableHead>Resource ID</TableHead>
+                    <TableHead className="text-right">IP Address</TableHead>
                   </TableRow>
-                ) : logs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                      No audit logs found matching the criteria.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  logs.map((log) => (
-                    <TableRow key={log.id} className="font-mono text-xs">
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss')}
-                      </TableCell>
-                      <TableCell>
-                        {log.employees ? `${log.employees.first_name} ${log.employees.last_name}` : log.users?.email || 'System'}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`font-semibold ${
-                          log.action === 'DELETE' ? 'text-rose-500' :
-                          log.action === 'CREATE' ? 'text-emerald-500' :
-                          log.action === 'UPDATE' ? 'text-amber-500' : 'text-blue-500'
-                        }`}>
-                          {log.action}
-                        </span>
-                      </TableCell>
-                      <TableCell>{log.resource_type}</TableCell>
-                      <TableCell className="text-muted-foreground max-w-[150px] truncate" title={log.resource_id}>
-                        {log.resource_id}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {log.ip_address || 'N/A'}
+                </TableHeader>
+                <TableBody>
+                  {logs.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                        No audit logs found matching the criteria.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ) : (
+                    logs.map((log) => (
+                      <TableRow key={log.id} className="font-mono text-xs">
+                        <TableCell className="whitespace-nowrap">
+                          {format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss')}
+                        </TableCell>
+                        <TableCell>
+                          {log.employees ? `${log.employees.first_name} ${log.employees.last_name}` : log.users?.email || 'System'}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`font-semibold ${
+                            log.action === 'DELETE' ? 'text-rose-500' :
+                            log.action === 'CREATE' ? 'text-emerald-500' :
+                            log.action === 'UPDATE' ? 'text-amber-500' : 'text-blue-500'
+                          }`}>
+                            {log.action}
+                          </span>
+                        </TableCell>
+                        <TableCell>{log.resource_type}</TableCell>
+                        <TableCell className="text-muted-foreground max-w-[150px] truncate" title={log.resource_id}>
+                          {log.resource_id}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {log.ip_address || 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
           
           <div className="flex items-center justify-end space-x-2 py-4">
             <Button

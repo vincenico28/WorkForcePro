@@ -20,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
+import { TableSkeleton } from '@/components/ui/skeleton-table'
 import { Progress } from '@/components/ui/progress'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
@@ -562,8 +563,8 @@ export default function PayrollPage() {
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
-                <div className="space-y-2 p-4">
-                  {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
+                <div className="p-4">
+                  <TableSkeleton columns={7} rows={5} withHeader={false} />
                 </div>
               ) : (
                 <Table>

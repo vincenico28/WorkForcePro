@@ -6,7 +6,7 @@ import {
   ChevronRight, Loader2, Search, Sparkles, FileImage, AlertCircle, FileUp
 } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus, useRequestCompliance, useUploadComplianceDocument } from '@/hooks/use-leaves'
+import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus, useRequestCompliance, useUploadComplianceDocument, useCancelLeave } from '@/hooks/use-leaves'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useAuthStore } from '@/stores/auth.store'
@@ -36,6 +36,8 @@ import type { LeaveRequest } from '@/types'
 
 const STATUS_CONFIG: Record<string, { className: string; label: string; icon: React.ElementType }> = {
   pending: { label: 'Pending', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400', icon: Clock },
+  pending_supervisor: { label: 'Pending Supervisor', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400', icon: Clock },
+  pending_hr: { label: 'Pending HR', className: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400', icon: Clock },
   approved: { label: 'Approved', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400', icon: CheckCircle },
   rejected: { label: 'Rejected', className: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400', icon: XCircle },
   cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', icon: XCircle },
@@ -55,14 +57,18 @@ function RequestLeaveDialog() {
     leave_type_id: '',
     start_date: '',
     end_date: '',
+    duration_type: 'full_day',
     reason: '',
   })
 
   const update = (k: string, v: string) => {
     setForm(p => {
       const next = { ...p, [k]: v }
-      if (k === 'start_date' && (!p.end_date || new Date(v) > new Date(p.end_date))) {
+      if (k === 'start_date' && (!p.end_date || new Date(v) > new Date(p.end_date) || next.duration_type !== 'full_day')) {
         next.end_date = v
+      }
+      if (k === 'duration_type' && v !== 'full_day' && next.start_date) {
+        next.end_date = next.start_date
       }
       return next
     })
@@ -70,6 +76,7 @@ function RequestLeaveDialog() {
 
   const calcDays = () => {
     if (!form.start_date || !form.end_date) return 0
+    if (form.duration_type !== 'full_day') return 0.5
     const s = new Date(form.start_date), e = new Date(form.end_date)
     const diff = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1
     return Math.max(0, diff)
@@ -122,7 +129,17 @@ function RequestLeaveDialog() {
     }
 
     try {
-      await mutateAsync({ ...form, total_days: days, status: 'pending', attachment_url })
+      // Determine initial status based on role
+      const initialStatus = employee?.role === 'employee' ? 'pending_supervisor' : 'pending_hr'
+      
+      await mutateAsync({ 
+        ...form, 
+        duration_type: form.duration_type as 'full_day' | 'half_day_am' | 'half_day_pm',
+        end_date: form.duration_type !== 'full_day' ? form.start_date : form.end_date,
+        total_days: days, 
+        status: initialStatus, 
+        attachment_url 
+      })
       toast.success('Leave request submitted!', { description: 'Your request is pending approval.' })
       setOpen(false)
       setFile(null)
@@ -175,6 +192,17 @@ function RequestLeaveDialog() {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1.5">
+            <Label>Duration Type *</Label>
+            <Select value={form.duration_type} onValueChange={v => update('duration_type', v)}>
+              <SelectTrigger><SelectValue placeholder="Full or Half Day" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full_day">Full Day</SelectItem>
+                <SelectItem value="half_day_am">Half Day (AM)</SelectItem>
+                <SelectItem value="half_day_pm">Half Day (PM)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Start Date *</Label>
@@ -196,26 +224,28 @@ function RequestLeaveDialog() {
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="space-y-1.5">
-              <Label>End Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.end_date && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.end_date ? format(new Date(form.end_date), "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={form.end_date ? new Date(form.end_date) : undefined}
-                    onSelect={(d) => d && update('end_date', format(d, 'yyyy-MM-dd'))}
-                    disabled={(date) => date < (form.start_date ? new Date(form.start_date) : addDays(new Date(), 6))}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            {form.duration_type === 'full_day' && (
+              <div className="space-y-1.5">
+                <Label>End Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.end_date && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.end_date ? format(new Date(form.end_date), "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.end_date ? new Date(form.end_date) : undefined}
+                      onSelect={(d) => d && update('end_date', format(d, 'yyyy-MM-dd'))}
+                      disabled={(date) => date < (form.start_date ? new Date(form.start_date) : addDays(new Date(), 6))}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
           </div>
           {calcDays() > 0 && selectedType && (
             <div className="rounded-lg bg-primary/5 px-3 py-2 text-sm flex justify-between items-center">
@@ -267,14 +297,19 @@ function LeaveCard({
   leave, 
   onAction,
   onRequestCompliance,
-  onUploadCompliance 
+  onUploadCompliance,
+  overlappingCount = 0,
+  onCancel,
 }: { 
   leave: LeaveRequest; 
   onAction?: (id: string, status: string) => void;
   onRequestCompliance?: (id: string) => void;
   onUploadCompliance?: (id: string, file: File) => Promise<void>;
+  overlappingCount?: number;
+  onCancel?: (id: string) => void;
 }) {
   const { can } = usePermissions()
+  const { employee } = useAuthStore()
   const cfg = STATUS_CONFIG[leave.status]
   const Icon = cfg?.icon ?? Clock
 
@@ -283,6 +318,21 @@ function LeaveCard({
   const [evalOpen, setEvalOpen] = useState(false)
   const [evalResult, setEvalResult] = useState<string | null>(null)
   const [isEvaluating, setIsEvaluating] = useState(false)
+
+  const isPendingSupervisor = leave.status === 'pending_supervisor'
+  const isPendingHR = leave.status === 'pending_hr'
+  const isPending = leave.status === 'pending' || isPendingSupervisor || isPendingHR
+
+  const canApprove = () => {
+    if (!can.approveLeaves()) return false
+    if (['hr_manager', 'admin', 'super_admin'].includes(employee?.role ?? '')) return true
+    if (employee?.role === 'team_supervisor' && (isPendingSupervisor || leave.status === 'pending')) return true
+    return false
+  }
+
+  const canCancel = leave.employee_id === employee?.id && 
+                    (leave.status === 'approved' || isPending) && 
+                    new Date(leave.start_date) > new Date()
 
   const handleEvaluate = async () => {
     setEvalOpen(true)
@@ -449,8 +499,16 @@ Please provide a short summary of the request, note any policy flags (like missi
           </div>
         )}
 
-        {leave.status === 'pending' && can.approveLeaves() && (
+        {isPending && canApprove() && (
           <div className="mt-3">
+            {overlappingCount > 0 && (
+              <div className="mb-3 flex items-start gap-2 rounded-md bg-amber-50 p-2 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+                <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                <p className="text-xs">
+                  <strong>Warning:</strong> {overlappingCount} other employee(s) in this department have approved leave during this period.
+                </p>
+              </div>
+            )}
             <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-1 bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100 hover:text-violet-700" onClick={handleEvaluate}>
               <Sparkles className="size-3" /> AI Policy Evaluator
             </Button>
@@ -478,7 +536,7 @@ Please provide a short summary of the request, note any policy flags (like missi
           </div>
         )}
 
-        {leave.status === 'pending' && onAction && can.approveLeaves() && (
+        {isPending && onAction && canApprove() && (
           <div className="mt-4 flex flex-col gap-2">
             <div className="flex gap-2 w-full">
               {onRequestCompliance && !leave.compliance_requested && (
@@ -501,12 +559,24 @@ Please provide a short summary of the request, note any policy flags (like missi
               <Button
                 size="sm"
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => onAction(leave.id, 'approved')}
+                onClick={() => {
+                  if (isPendingSupervisor) onAction(leave.id, 'pending_hr')
+                  else onAction(leave.id, 'approved')
+                }}
               >
                 <CheckCircle className="mr-1.5 size-3.5" />
-                Approve
+                {isPendingSupervisor ? 'Approve (To HR)' : 'Approve'}
               </Button>
             </div>
+          </div>
+        )}
+        
+        {canCancel && onCancel && (
+          <div className="mt-4">
+            <Button size="sm" variant="outline" className="w-full text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => onCancel(leave.id)}>
+              <XCircle className="mr-1.5 size-3.5" />
+              Cancel Leave
+            </Button>
           </div>
         )}
 
@@ -533,6 +603,7 @@ export default function LeavesPage() {
   const { mutateAsync: updateStatus } = useUpdateLeaveStatus()
   const { mutateAsync: requestCompliance } = useRequestCompliance()
   const { mutateAsync: uploadCompliance } = useUploadComplianceDocument()
+  const { mutateAsync: cancelLeave } = useCancelLeave()
   const { data: leaveTypes } = useLeaveTypes()
 
   const handleUploadCompliance = async (id: string, file: File) => {
@@ -611,7 +682,28 @@ export default function LeavesPage() {
     }
   }
 
-  const pendingCount = filteredLeaves?.filter(l => l.status === 'pending').length ?? 0
+  const handleCancel = async (id: string) => {
+    if (!confirm('Are you sure you want to cancel this leave request?')) return
+    try {
+      await cancelLeave(id)
+      toast.success('Leave request cancelled')
+    } catch {
+      toast.error('Failed to cancel leave request')
+    }
+  }
+
+  const getOverlappingCount = (leave: LeaveRequest) => {
+    return leaves?.filter(l => 
+      l.id !== leave.id && 
+      l.status === 'approved' && 
+      l.employees?.departments?.name &&
+      l.employees?.departments?.name === leave.employees?.departments?.name &&
+      new Date(l.start_date) <= new Date(leave.end_date) && 
+      new Date(l.end_date) >= new Date(leave.start_date)
+    ).length || 0;
+  }
+
+  const pendingCount = filteredLeaves?.filter(l => ['pending', 'pending_supervisor', 'pending_hr'].includes(l.status)).length ?? 0
 
   return (
     <div className="space-y-6">
@@ -664,7 +756,7 @@ export default function LeavesPage() {
       {/* Requests */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <TabsList>
+          <TabsList className="w-full justify-start flex-wrap h-auto md:w-auto md:flex-nowrap">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="pending" className="gap-1.5">
               Pending
@@ -723,6 +815,8 @@ export default function LeavesPage() {
                       onAction={handleAction} 
                       onRequestCompliance={setComplianceAction}
                       onUploadCompliance={handleUploadCompliance}
+                      onCancel={handleCancel}
+                      overlappingCount={['pending', 'pending_supervisor', 'pending_hr'].includes(lr.status) ? getOverlappingCount(lr) : 0}
                     />
                   </motion.div>
                 ))}

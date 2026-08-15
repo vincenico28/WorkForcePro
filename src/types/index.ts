@@ -136,7 +136,7 @@ export interface LeaveBalance {
   leave_types?: LeaveType
 }
 
-export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+export type LeaveStatus = 'pending' | 'pending_supervisor' | 'pending_hr' | 'approved' | 'rejected' | 'cancelled'
 
 export interface LeaveRequest {
   id: string
@@ -144,6 +144,7 @@ export interface LeaveRequest {
   leave_type_id: string
   start_date: string
   end_date: string
+  duration_type?: 'full_day' | 'half_day_am' | 'half_day_pm'
   total_days: number
   reason?: string
   status: LeaveStatus
