@@ -3,7 +3,7 @@ import { motion } from 'framer-motion'
 import { format, addDays } from 'date-fns'
 import {
   Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus, Filter, Download,
-  ChevronRight, Loader2, Search, Sparkles, FileImage, AlertCircle, FileUp
+  ChevronRight, Loader2, Search, Sparkles, FileImage, AlertCircle, FileUp, ShieldCheck
 } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus, useRequestCompliance, useUploadComplianceDocument, useCancelLeave } from '@/hooks/use-leaves'
@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -43,10 +43,82 @@ const STATUS_CONFIG: Record<string, { className: string; label: string; icon: Re
   cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', icon: XCircle },
 }
 
+const DOLE_STATUTORY_INFO: Record<string, {
+  act: string
+  allowance: string
+  description: string
+  requiredDoc: string
+  isMandatoryDoc: boolean
+}> = {
+  'VL': {
+    act: 'Labor Code Art. 95 (Service Incentive Leave)',
+    allowance: '15 Days / Year (DOLE SIL ≥ 5 Days)',
+    description: 'Vacation and planned rest leave with pay.',
+    requiredDoc: 'Optional for advance filing',
+    isMandatoryDoc: false,
+  },
+  'SL': {
+    act: 'DOLE Standard Sick Leave',
+    allowance: '15 Days / Year',
+    description: 'For medical treatment, sickness, or hospitalization.',
+    requiredDoc: 'Medical Certificate from Licensed Physician',
+    isMandatoryDoc: true,
+  },
+  'ML': {
+    act: 'Republic Act No. 11210 (Expanded Maternity Leave)',
+    allowance: '105 Days Full Pay (120d Solo Mothers)',
+    description: '105 days paid maternity leave for live childbirth (60d for miscarriage).',
+    requiredDoc: 'SSS Mat-1 Notification & Ultrasound / Birth Record',
+    isMandatoryDoc: true,
+  },
+  'PL': {
+    act: 'Republic Act No. 8187 (Paternity Leave Act)',
+    allowance: '7 Days Full Pay',
+    description: '7 days paid leave for married male employees for first 4 child deliveries.',
+    requiredDoc: 'Marriage Certificate & Child Birth Certificate',
+    isMandatoryDoc: true,
+  },
+  'SPL': {
+    act: 'Republic Act No. 8972 / RA 11861 (Solo Parents Act)',
+    allowance: '7 Days Full Pay / Year',
+    description: '7 working days parental leave for certified solo parent employees.',
+    requiredDoc: 'Valid DSWD / City Solo Parent ID',
+    isMandatoryDoc: true,
+  },
+  'SLW': {
+    act: 'Republic Act No. 9710 (Magna Carta of Women)',
+    allowance: 'Up to 60 Days (2 Months) Full Pay',
+    description: 'Special paid leave following surgery caused by gynecological disorders.',
+    requiredDoc: 'Medical Surgical Certificate & Operative Technique Record',
+    isMandatoryDoc: true,
+  },
+  'VAWC': {
+    act: 'Republic Act No. 9262 (Anti-VAWC Act)',
+    allowance: '10 Days Full Pay',
+    description: 'Paid leave for female employees or children who are victims of violence.',
+    requiredDoc: 'Barangay Protection Order (BPO) or Police / Court Certification',
+    isMandatoryDoc: true,
+  },
+  'BL': {
+    act: 'DOLE Standard Bereavement Leave',
+    allowance: '5 Days Full Pay',
+    description: 'For mourning immediate family members (spouse, child, parent, sibling).',
+    requiredDoc: 'Death Certificate / Burial Certificate',
+    isMandatoryDoc: true,
+  },
+  'ECL': {
+    act: 'DOLE Labor Advisory (Calamity Leave)',
+    allowance: '3 Days Full Pay',
+    description: 'For employees affected by natural disasters in declared calamity areas.',
+    requiredDoc: 'Proof of residence within State of Calamity area',
+    isMandatoryDoc: false,
+  }
+}
+
 function RequestLeaveDialog() {
   const { employee } = useAuthStore()
-  const { data: leaveTypes } = useLeaveTypes()
   const { mutateAsync, isPending } = useCreateLeaveRequest()
+  const { data: leaveTypes } = useLeaveTypes()
   const { data: employees } = useEmployees()
   const { can } = usePermissions()
   const [open, setOpen] = useState(false)
@@ -84,22 +156,28 @@ function RequestLeaveDialog() {
 
   const { data: balances } = useLeaveBalances(form.employee_id)
   const selectedType = leaveTypes?.find(lt => lt.id === form.leave_type_id)
-  const isSickLeave = selectedType?.name.toLowerCase().includes('sick')
+  const doleInfo = selectedType?.code ? DOLE_STATUTORY_INFO[selectedType.code] : undefined
+  const isDocMandatory = doleInfo?.isMandatoryDoc ?? selectedType?.requires_attachment ?? false
+
   const bal = balances?.find(b => b.leave_type_id === form.leave_type_id)
   const allocated = bal?.allocated_days ?? selectedType?.days_allowed ?? 0
   const used = bal?.used_days ?? 0
   const remaining = Math.max(0, allocated - used)
   const requestedDays = calcDays()
-  const projectedRemaining = Math.max(0, remaining - requestedDays)
+  const projectedRemaining = remaining - requestedDays
+  const isOverLimit = requestedDays > remaining
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const days = calcDays()
     if (days <= 0) { toast.error('End date must be after start date'); return }
-    if (requestedDays > remaining) { toast.error('Insufficient leave balance'); return }
+    if (isOverLimit) { 
+      toast.error(`Exceeds DOLE statutory leave limit! You only have ${remaining} day(s) remaining for ${selectedType?.name || 'this leave type'}.`)
+      return 
+    }
     
-    if (isSickLeave && !file) {
-      toast.error('Medical Certificate is required for Sick Leave')
+    if (isDocMandatory && !file) {
+      toast.error(`Compliance Document Required: Please attach ${doleInfo?.requiredDoc || 'the required supporting document'}`)
       return
     }
 
@@ -121,7 +199,7 @@ function RequestLeaveDialog() {
           
         attachment_url = publicUrlData.publicUrl
       } catch (err: any) {
-        toast.error('Failed to upload medical certificate', { description: err.message })
+        toast.error('Failed to upload compliance attachment', { description: err.message })
         setUploading(false)
         return
       }
@@ -129,7 +207,6 @@ function RequestLeaveDialog() {
     }
 
     try {
-      // Determine initial status based on role
       const initialStatus = employee?.role === 'employee' ? 'pending_supervisor' : 'pending_hr'
       
       await mutateAsync({ 
@@ -140,7 +217,7 @@ function RequestLeaveDialog() {
         status: initialStatus, 
         attachment_url 
       })
-      toast.success('Leave request submitted!', { description: 'Your request is pending approval.' })
+      toast.success('Leave request submitted successfully!', { description: 'Forwarded for supervisor and HR certification.' })
       setOpen(false)
       setFile(null)
     } catch (err: any) {
@@ -156,9 +233,9 @@ function RequestLeaveDialog() {
           Request Leave
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Leave Request</DialogTitle>
+          <DialogTitle>File DOLE Statutory Leave Request</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="mt-2 space-y-4">
           {can.manageLeaves() && (
@@ -177,116 +254,144 @@ function RequestLeaveDialog() {
             </div>
           )}
           <div className="space-y-1.5">
-            <Label>Leave Type *</Label>
+            <Label>Statutory Leave Type *</Label>
             <Select value={form.leave_type_id} onValueChange={v => update('leave_type_id', v)} required>
-              <SelectTrigger><SelectValue placeholder="Select leave type" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select DOLE statutory leave type" /></SelectTrigger>
               <SelectContent>
                 {leaveTypes?.map(lt => (
                   <SelectItem key={lt.id} value={lt.id}>
                     <div className="flex items-center gap-2">
                       <div className="size-2 rounded-full" style={{ background: lt.color }} />
-                      {lt.name} ({lt.days_allowed} days/yr)
+                      <span className="font-medium">{lt.name}</span>
+                      <span className="text-xs text-muted-foreground">({lt.days_allowed}d DOLE limit)</span>
                     </div>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
+          {/* DOLE Statutory Info Box */}
+          {doleInfo && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-1 text-xs">
+              <div className="flex items-center justify-between font-semibold text-primary">
+                <span>{doleInfo.act}</span>
+                <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary">
+                  {doleInfo.allowance}
+                </Badge>
+              </div>
+              <p className="text-muted-foreground text-[11px]">{doleInfo.description}</p>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label>Duration Type *</Label>
             <Select value={form.duration_type} onValueChange={v => update('duration_type', v)}>
               <SelectTrigger><SelectValue placeholder="Full or Half Day" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="full_day">Full Day</SelectItem>
-                <SelectItem value="half_day_am">Half Day (AM)</SelectItem>
-                <SelectItem value="half_day_pm">Half Day (PM)</SelectItem>
+                <SelectItem value="full_day">Full Day (8 Hours)</SelectItem>
+                <SelectItem value="half_day_am">Half Day AM (4 Hours - Morning Shift)</SelectItem>
+                <SelectItem value="half_day_pm">Half Day PM (4 Hours - Afternoon Shift)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Start Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.start_date && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.start_date ? format(new Date(form.start_date), "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={form.start_date ? new Date(form.start_date) : undefined}
-                    onSelect={(d) => d && update('start_date', format(d, 'yyyy-MM-dd'))}
-                    disabled={(date) => date < addDays(new Date(), 6)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={form.start_date}
+                onChange={e => update('start_date', e.target.value)}
+                required
+              />
             </div>
             {form.duration_type === 'full_day' && (
               <div className="space-y-1.5">
                 <Label>End Date *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !form.end_date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {form.end_date ? format(new Date(form.end_date), "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={form.end_date ? new Date(form.end_date) : undefined}
-                      onSelect={(d) => d && update('end_date', format(d, 'yyyy-MM-dd'))}
-                      disabled={(date) => date < (form.start_date ? new Date(form.start_date) : addDays(new Date(), 6))}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  type="date"
+                  value={form.end_date}
+                  onChange={e => update('end_date', e.target.value)}
+                  min={form.start_date || undefined}
+                  required
+                />
               </div>
             )}
           </div>
-          {calcDays() > 0 && selectedType && (
-            <div className="rounded-lg bg-primary/5 px-3 py-2 text-sm flex justify-between items-center">
-              <div>
-                <span className="font-medium text-primary">{requestedDays} working day{requestedDays !== 1 ? 's' : ''}</span>
-                <span className="text-muted-foreground"> requested</span>
+
+          {/* Live Balance & Limit Breakdown */}
+          {selectedType && (
+            <div className="rounded-xl border border-border bg-card p-3.5 space-y-2 text-xs">
+              <div className="flex items-center justify-between font-bold text-foreground">
+                <span>DOLE Statutory Allowance</span>
+                <span>{allocated} Days / Year</span>
               </div>
-              <div className="text-right">
-                <span className="text-muted-foreground text-xs block">Projected Balance:</span>
-                <span className={`font-semibold ${projectedRemaining < 0 ? 'text-red-500' : 'text-primary'}`}>
-                  {projectedRemaining} days
-                </span>
+              <div className="grid grid-cols-3 gap-2 text-center pt-1 border-t border-border/50">
+                <div className="bg-muted/40 p-2 rounded">
+                  <p className="text-[10px] text-muted-foreground font-medium">Used to Date</p>
+                  <p className="text-sm font-bold text-foreground mt-0.5">{used}d</p>
+                </div>
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 p-2 rounded border border-emerald-200 dark:border-emerald-900/50">
+                  <p className="text-[10px] text-emerald-800 dark:text-emerald-300 font-medium">Available</p>
+                  <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mt-0.5">{remaining}d</p>
+                </div>
+                <div className={`p-2 rounded border ${isOverLimit ? 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900/50' : 'bg-muted/40 border-border/50'}`}>
+                  <p className="text-[10px] text-muted-foreground font-medium">Projected Left</p>
+                  <p className={`text-sm font-bold mt-0.5 ${isOverLimit ? 'text-red-600 dark:text-red-400' : 'text-primary'}`}>
+                    {projectedRemaining}d
+                  </p>
+                </div>
               </div>
+              {isOverLimit && (
+                <p className="text-[11px] text-red-600 dark:text-red-400 font-semibold mt-1">
+                  ⚠️ Requested {requestedDays} day(s) exceeds your statutory limit ({remaining} days remaining).
+                </p>
+              )}
             </div>
           )}
+
           <div className="space-y-1.5">
-            <Label>Compliance Document {isSickLeave ? '*' : '(Optional)'}</Label>
+            <Label className="flex items-center justify-between">
+              <span>Required Compliance Document {isDocMandatory ? '*' : '(Optional)'}</span>
+              {isDocMandatory && (
+                <span className="text-[10px] text-primary font-semibold">DOLE Statutory Requirement</span>
+              )}
+            </Label>
             <input
               type="file"
-              required={isSickLeave}
+              required={isDocMandatory}
               accept="image/*,.pdf"
               onChange={e => setFile(e.target.files?.[0] || null)}
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-muted-foreground file:border-0 file:bg-primary file:text-primary-foreground file:text-sm file:font-medium file:mr-4 file:px-3 file:py-1 file:rounded-md shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs text-muted-foreground file:border-0 file:bg-primary file:text-primary-foreground file:text-xs file:font-medium file:mr-3 file:px-2.5 file:py-1 file:rounded shadow-xs transition-colors"
             />
-            <p className="text-[10px] text-muted-foreground">Required for Sick Leave. Optional for others (PDF, JPG, PNG)</p>
+            <p className="text-[10px] text-muted-foreground">
+              {doleInfo?.requiredDoc 
+                ? `Required: ${doleInfo.requiredDoc}` 
+                : 'Upload scanned copy of proof or medical certificate (PDF, JPG, PNG)'}
+            </p>
           </div>
+
           <div className="space-y-1.5">
-            <Label>Reason</Label>
+            <Label>Justification / Reason</Label>
             <Textarea
               value={form.reason}
               onChange={e => update('reason', e.target.value)}
-              placeholder="Optional: describe the reason for your leave..."
-              rows={3}
+              placeholder="Brief explanation for leave request..."
+              rows={2}
+              className="text-xs"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+
+          <DialogFooter className="gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={isPending || uploading || !form.leave_type_id || !form.start_date || !form.end_date}>
-              {(isPending || uploading) ? <><Loader2 className="mr-2 size-4 animate-spin" />Submitting...</> : 'Submit Request'}
+            <Button 
+              type="submit" 
+              disabled={isPending || uploading || !form.leave_type_id || !form.start_date || !form.end_date || isOverLimit}
+            >
+              {(isPending || uploading) ? <><Loader2 className="mr-2 size-4 animate-spin" />Submitting...</> : 'Submit DOLE Request'}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -723,29 +828,42 @@ export default function LeavesPage() {
         </div>
       </div>
 
-      {/* Balances Overview */}
+      {/* Balances Overview with DOLE Statutory Citations */}
       {balances && balances.length > 0 && (
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 lg:gap-6">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 lg:gap-5">
           {balances.map(b => {
             const remaining = Math.max(0, (b.allocated_days || 0) - (b.used_days || 0))
             const percent = ((b.used_days || 0) / (b.allocated_days || 1)) * 100
+            const code = b.leave_types?.code || ''
+            const doleStatutory = code ? DOLE_STATUTORY_INFO[code] : undefined
+
             return (
-              <Card key={b.id} className="relative overflow-hidden border-border/50 bg-background/50 backdrop-blur">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <div className="size-16 rounded-full" style={{ background: b.leave_types?.color || '#ccc' }} />
+              <Card key={b.id} className="relative overflow-hidden border-border/60 bg-card hover:shadow-md transition-shadow">
+                <div className="absolute top-0 right-0 p-3 opacity-10">
+                  <div className="size-16 rounded-full" style={{ background: b.leave_types?.color || '#6366F1' }} />
                 </div>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <div className="size-2.5 rounded-full" style={{ background: b.leave_types?.color || '#ccc' }} />
-                    {b.leave_types?.name}
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xs font-bold text-foreground flex items-center gap-1.5 truncate">
+                      <div className="size-2.5 rounded-full shrink-0" style={{ background: b.leave_types?.color || '#6366F1' }} />
+                      <span className="truncate">{b.leave_types?.name}</span>
+                    </CardTitle>
+                  </div>
+                  {doleStatutory && (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 w-fit mt-1 bg-primary/5 text-primary border-primary/20 font-medium truncate">
+                      {doleStatutory.act.split('(')[0].trim()}
+                    </Badge>
+                  )}
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{remaining} <span className="text-sm font-normal text-muted-foreground">days left</span></div>
-                  <Progress value={percent} className="h-1.5 mt-3" />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {b.used_days} used out of {b.allocated_days}
-                  </p>
+                <CardContent className="pt-0">
+                  <div className="text-2xl font-extrabold text-foreground mt-1">
+                    {remaining} <span className="text-xs font-normal text-muted-foreground">days left</span>
+                  </div>
+                  <Progress value={percent} className="h-1.5 mt-2.5" />
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1.5">
+                    <span>{b.used_days || 0} used</span>
+                    <span className="font-medium">{b.allocated_days || 0}d DOLE limit</span>
+                  </div>
                 </CardContent>
               </Card>
             )
@@ -753,11 +871,11 @@ export default function LeavesPage() {
         </div>
       )}
 
-      {/* Requests */}
+      {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <TabsList className="w-full justify-start flex-wrap h-auto md:w-auto md:flex-nowrap">
-            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="all">All Requests</TabsTrigger>
             <TabsTrigger value="pending" className="gap-1.5">
               Pending
               {pendingCount > 0 && (
@@ -766,33 +884,100 @@ export default function LeavesPage() {
             </TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
+            <TabsTrigger value="dole_rights" className="gap-1.5 bg-primary/10 text-primary font-semibold hover:bg-primary/20">
+              <ShieldCheck className="size-3.5" />
+              DOLE Legal Rights & Acts
+            </TabsTrigger>
           </TabsList>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-              <Input
-                placeholder="Search employee..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-[200px] pl-9"
-              />
+          {activeTab !== 'dole_rights' && (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search employee..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-[200px] pl-9"
+                />
+              </div>
+              {can.manageLeaves() && (
+                <Select value={selectedCategory || 'all'} onValueChange={v => setSelectedCategory(v === 'all' ? null : v)}>
+                  <SelectTrigger className="w-[180px]">
+                    <Filter className="mr-2 size-4 text-muted-foreground" />
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {leaveTypes?.map(lt => (
+                      <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
-            {can.manageLeaves() && (
-              <Select value={selectedCategory || 'all'} onValueChange={v => setSelectedCategory(v === 'all' ? null : v)}>
-                <SelectTrigger className="w-[180px]">
-                  <Filter className="mr-2 size-4 text-muted-foreground" />
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {leaveTypes?.map(lt => (
-                    <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
+          )}
         </div>
+
+        {/* Philippine DOLE Statutory Legal Rights Tab */}
+        <TabsContent value="dole_rights" className="mt-4 space-y-4">
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-card to-background">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="size-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold shadow-xs">
+                  ⚖️
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Philippine DOLE & Statutory Leave Rights Reference</CardTitle>
+                  <CardDescription>
+                    Official statutory leave benefits and legal entitlements mandated by Philippine Republic Acts & DOLE Labor Code
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(DOLE_STATUTORY_INFO).map(([code, info]) => {
+                  const lt = leaveTypes?.find(t => t.code === code)
+                  return (
+                    <div 
+                      key={code} 
+                      className="rounded-xl border border-border bg-card p-4 flex flex-col justify-between shadow-xs hover:shadow-md hover:border-primary/40 transition-all space-y-3"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <Badge className="bg-primary text-primary-foreground text-[10px] font-bold">
+                            {code}
+                          </Badge>
+                          <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 font-semibold">
+                            100% Paid Leave
+                          </Badge>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm text-foreground">{lt?.name || info.act}</h4>
+                          <p className="text-xs text-primary font-semibold mt-0.5">{info.act}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{info.description}</p>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-border/60 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Statutory Limit:</span>
+                          <span className="font-bold text-foreground">{info.allowance}</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-muted-foreground block text-[11px]">Required Legal Proof:</span>
+                          <span className="font-medium text-foreground text-[11px] block bg-muted/40 p-1.5 rounded border border-border/50">
+                            📄 {info.requiredDoc}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {['all', 'pending', 'approved', 'rejected'].map(tab => (
           <TabsContent key={tab} value={tab} className="mt-4">

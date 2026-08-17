@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { format, addWeeks, subWeeks, startOfWeek, endOfWeek, eachDayOfInterval, isToday, isWeekend, parseISO } from 'date-fns'
 import {
   Clock, CheckCircle, XCircle, Plus, ChevronLeft, ChevronRight,
@@ -158,14 +158,23 @@ function EditTimeEntryDialog({
 function AddTimeEntryDialog({
   employeeId,
   date,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
   onSuccess,
 }: {
   employeeId: string
   date?: Date
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   onSuccess: () => void
 }) {
   const { mutateAsync, isPending } = useCreateTimesheetEntry()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled ? (setControlledOpen || (() => {})) : setInternalOpen
+
   const [form, setForm] = useState({
     date: date ? format(date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
     start_time: '09:00',
@@ -174,6 +183,13 @@ function AddTimeEntryDialog({
     notes: '',
     overtime_hours: 0,
   })
+
+  // Keep form date in sync when date prop changes
+  useEffect(() => {
+    if (date) {
+      setForm(p => ({ ...p, date: format(date, 'yyyy-MM-dd') }))
+    }
+  }, [date])
 
   const calcHours = () => {
     const [sh, sm] = form.start_time.split(':').map(Number)
@@ -299,113 +315,199 @@ function AddTimeEntryDialog({
 
 function WeeklyCalendarView({ 
   entries, 
-  weekDays 
+  weekDays,
+  onEditEntry,
+  onAddEntry,
+  onApproveEntry,
+  onDeleteEntry,
+  canApprove,
+  canEdit,
+  currentUserId,
 }: { 
   entries: TimesheetEntry[], 
-  weekDays: Date[] 
+  weekDays: Date[],
+  onEditEntry?: (entry: TimesheetEntry) => void,
+  onAddEntry?: (date: Date) => void,
+  onApproveEntry?: (id: string) => void,
+  onDeleteEntry?: (id: string) => void,
+  canApprove?: boolean,
+  canEdit?: boolean,
+  currentUserId?: string,
 }) {
-  const hours = Array.from({ length: 13 }, (_, i) => i + 7) // 7 AM to 7 PM
-
-  const getEntryStyle = (entry: TimesheetEntry) => {
-    const [startH, startM] = entry.start_time.split(':').map(Number)
-    const [endH, endM] = entry.end_time.split(':').map(Number)
-    
-    // Calculate start position (relative to 7 AM)
-    const startOffsetMinutes = (startH - 7) * 60 + startM
-    const top = `${(startOffsetMinutes / (12 * 60)) * 100}%`
-    
-    // Calculate duration
-    let durationMins = (endH - startH) * 60 + (endM - startM)
-    if (durationMins < 0) durationMins += 24 * 60 // overnight
-    const height = `${(durationMins / (12 * 60)) * 100}%`
-
-    return { top, height }
-  }
-
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+    <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col shadow-sm">
       {/* Calendar Header */}
-      <div className="grid grid-cols-[60px_1fr] border-b border-border bg-muted/20">
-        <div className="p-3 border-r border-border text-center flex flex-col justify-end">
-          <Clock className="size-4 text-muted-foreground mx-auto" />
-        </div>
-        <div className="grid grid-cols-7 divide-x divide-border">
-          {weekDays.map(day => (
-            <div key={day.toISOString()} className={`p-3 text-center ${isToday(day) ? 'bg-primary/5' : ''}`}>
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{format(day, 'EEE')}</div>
-              <div className={`text-lg font-bold mt-0.5 ${isToday(day) ? 'text-primary' : 'text-foreground'}`}>{format(day, 'd')}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-7 divide-y sm:divide-y-0 sm:divide-x divide-border border-b border-border bg-muted/30">
+        {weekDays.map(day => {
+          const dateStr = format(day, 'yyyy-MM-dd')
+          const dayEntries = entries.filter(e => e.date === dateStr)
+          const dayTotalHours = dayEntries.reduce((sum, e) => sum + (e.total_hours || 0), 0)
+          const isTodayDate = isToday(day)
+
+          return (
+            <div 
+              key={day.toISOString()} 
+              className={`p-3 text-center transition-colors ${isTodayDate ? 'bg-primary/10 dark:bg-primary/20' : isWeekend(day) ? 'bg-muted/10' : ''}`}
+            >
+              <div className="flex items-center justify-between sm:flex-col sm:justify-center gap-1">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {format(day, 'EEE')}
+                </span>
+                <div className="flex items-center gap-2 sm:flex-col sm:gap-0.5">
+                  <span className={`text-xl font-bold ${isTodayDate ? 'text-primary' : 'text-foreground'}`}>
+                    {format(day, 'd')}
+                  </span>
+                  {dayTotalHours > 0 && (
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5 font-medium">
+                      {dayTotalHours.toFixed(1)}h total
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
+          )
+        })}
       </div>
 
-      {/* Calendar Body */}
-      <div className="grid grid-cols-[60px_1fr] bg-card relative min-h-[600px] overflow-y-auto custom-scrollbar">
-        {/* Time Labels */}
-        <div className="border-r border-border bg-muted/10 relative">
-          {hours.map(hour => (
-            <div key={hour} className="absolute w-full pr-2 text-right text-[10px] text-muted-foreground font-medium -translate-y-2" style={{ top: `${((hour - 7) / 12) * 100}%` }}>
-              {hour > 12 ? `${hour - 12} PM` : hour === 12 ? '12 PM' : `${hour} AM`}
-            </div>
-          ))}
-        </div>
+      {/* Calendar Columns Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-7 divide-y sm:divide-y-0 sm:divide-x divide-border bg-background/50 min-h-[500px]">
+        {weekDays.map(day => {
+          const dateStr = format(day, 'yyyy-MM-dd')
+          const dayEntries = entries.filter(e => e.date === dateStr)
+          const isTodayDate = isToday(day)
 
-        {/* Grid and Entries */}
-        <div className="grid grid-cols-7 divide-x divide-border relative">
-          {/* Horizontal Grid Lines */}
-          <div className="absolute inset-0 pointer-events-none">
-            {hours.map(hour => (
-              <div key={hour} className="absolute w-full border-t border-border/50" style={{ top: `${((hour - 7) / 12) * 100}%` }} />
-            ))}
-          </div>
+          return (
+            <div 
+              key={dateStr} 
+              className={`p-2.5 flex flex-col gap-2 relative transition-colors ${
+                isTodayDate ? 'bg-primary/[0.02]' : isWeekend(day) ? 'bg-muted/10' : ''
+              }`}
+            >
+              {dayEntries.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-8 text-center text-muted-foreground/50 border border-dashed border-border/60 rounded-lg p-2 hover:border-primary/40 hover:bg-primary/[0.02] transition-colors group">
+                  <Clock className="size-5 mb-1.5 opacity-40 group-hover:text-primary group-hover:opacity-80 transition-all" />
+                  <span className="text-xs">No hours logged</span>
+                  {onAddEntry && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="mt-2 h-7 text-xs text-primary gap-1"
+                      onClick={() => onAddEntry(day)}
+                    >
+                      <Plus className="size-3" /> Log Hours
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                dayEntries.map(entry => {
+                  const startTime = entry.start_time ? entry.start_time.substring(0, 5) : '09:00'
+                  const endTime = entry.end_time ? entry.end_time.substring(0, 5) : '17:00'
+                  const empName = entry.employees ? `${entry.employees.first_name} ${entry.employees.last_name || ''}` : 'Employee'
 
-          {/* Daily Columns */}
-          {weekDays.map(day => {
-            const dayStr = format(day, 'yyyy-MM-dd')
-            const dayEntries = entries.filter(e => e.date === dayStr)
-            
-            return (
-              <div key={dayStr} className={`relative ${isWeekend(day) ? 'bg-muted/10' : ''}`}>
-                {dayEntries.map(entry => (
-                  <div
-                    key={entry.id}
-                    className="absolute left-1 right-1 rounded-md p-1.5 overflow-hidden transition-all hover:ring-2 hover:ring-primary/50 shadow-sm border"
-                    style={{
-                      ...getEntryStyle(entry),
-                      backgroundColor: entry.is_approved ? 'rgba(16, 185, 129, 0.1)' : 'rgba(124, 58, 237, 0.1)',
-                      borderColor: entry.is_approved ? 'rgba(16, 185, 129, 0.3)' : 'rgba(124, 58, 237, 0.3)',
-                      zIndex: 10
-                    }}
-                  >
-                    <div className="flex flex-col h-full">
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className={`text-[10px] font-bold ${entry.is_approved ? 'text-emerald-700 dark:text-emerald-400' : 'text-violet-700 dark:text-violet-400'} truncate`}>
-                          {entry.start_time.substring(0,5)} - {entry.end_time.substring(0,5)}
+                  return (
+                    <div
+                      key={entry.id}
+                      className={`group relative rounded-lg border p-2.5 transition-all shadow-xs hover:shadow-md ${
+                        entry.is_approved 
+                          ? 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50' 
+                          : 'border-amber-500/30 bg-amber-500/5 hover:border-amber-500/50'
+                      }`}
+                    >
+                      {/* Top Header: Employee & Status Badge */}
+                      <div className="flex items-start justify-between gap-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Avatar className="size-5 shrink-0">
+                            {entry.employees?.avatar_url && <AvatarImage src={entry.employees.avatar_url} className="object-cover" />}
+                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                              {entry.employees?.first_name?.[0] || 'E'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs font-semibold text-foreground truncate" title={empName}>
+                            {empName}
+                          </span>
+                        </div>
+                        <Badge 
+                          className={`text-[9px] h-4 px-1.5 shrink-0 gap-0.5 ${
+                            entry.is_approved 
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300' 
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                          }`}
+                        >
+                          {entry.is_approved ? <CheckCircle className="size-2.5" /> : <Clock className="size-2.5" />}
+                          {entry.is_approved ? 'Approved' : 'Pending'}
+                        </Badge>
+                      </div>
+
+                      {/* Time Range & Total Hours */}
+                      <div className="flex items-center justify-between text-xs font-medium text-muted-foreground my-1 bg-background/60 px-2 py-1 rounded border border-border/40">
+                        <span className="text-[11px] text-foreground font-semibold">
+                          {startTime} – {endTime}
                         </span>
-                        {entry.is_approved ? (
-                          <CheckCircle className="size-3 text-emerald-500 shrink-0" />
-                        ) : (
-                          <Timer className="size-3 text-violet-500 shrink-0" />
-                        )}
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-foreground">{(entry.total_hours || 0).toFixed(1)}h</span>
+                          {entry.overtime_hours > 0 && (
+                            <span className="text-[10px] text-amber-600 font-bold">
+                              +{entry.overtime_hours.toFixed(1)} OT
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      
-                      <div className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
-                        <UserCheck className="size-3" />
-                        <span className="truncate">{entry.employees?.first_name} {entry.employees?.last_name?.charAt(0)}.</span>
-                      </div>
-                      
-                      {entry.break_minutes > 0 && (
-                        <div className="mt-auto text-[9px] text-muted-foreground/80 font-medium">
-                          {entry.break_minutes}m break
+
+                      {/* Break & Notes */}
+                      {(entry.break_minutes > 0 || entry.notes) && (
+                        <div className="text-[10px] text-muted-foreground/80 mt-1 space-y-0.5">
+                          {entry.break_minutes > 0 && (
+                            <p>☕ {entry.break_minutes}m break</p>
+                          )}
+                          {entry.notes && (
+                            <p className="truncate italic">"{entry.notes}"</p>
+                          )}
                         </div>
                       )}
+
+                      {/* Action Hover Toolbar */}
+                      <div className="mt-2 pt-1.5 border-t border-border/40 flex items-center justify-end gap-1">
+                        {canApprove && !entry.is_approved && onApproveEntry && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-950/50"
+                            title="Approve Entry"
+                            onClick={() => onApproveEntry(entry.id)}
+                          >
+                            <CheckCircle className="size-3.5" />
+                          </Button>
+                        )}
+                        {(!entry.is_approved || canEdit) && onEditEntry && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground hover:text-foreground"
+                            title="Edit Entry"
+                            onClick={() => onEditEntry(entry)}
+                          >
+                            <Edit2 className="size-3" />
+                          </Button>
+                        )}
+                        {(!entry.is_approved || canEdit) && onDeleteEntry && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-destructive hover:bg-destructive/10"
+                            title="Delete Entry"
+                            onClick={() => onDeleteEntry(entry.id)}
+                          >
+                            <Trash2 className="size-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-        </div>
+                  )
+                })
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -418,6 +520,8 @@ export default function TimesheetPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string | undefined>(undefined)
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [editingEntry, setEditingEntry] = useState<TimesheetEntry | null>(null)
+  const [addEntryOpen, setAddEntryOpen] = useState(false)
+  const [addEntryDate, setAddEntryDate] = useState<Date | undefined>(undefined)
   const [activeTab, setActiveTab] = useState('grid')
 
   const { startDate, endDate } = useMemo(() => ({
@@ -583,7 +687,13 @@ export default function TimesheetPage() {
           </Button>
           <AddTimeEntryDialog
             employeeId={employee?.id || ''}
-            onSuccess={() => {}}
+            open={addEntryOpen}
+            onOpenChange={setAddEntryOpen}
+            date={addEntryDate}
+            onSuccess={() => {
+              setAddEntryOpen(false)
+              setAddEntryDate(undefined)
+            }}
           />
         </div>
       </div>
@@ -777,7 +887,20 @@ export default function TimesheetPage() {
       </TabsContent>
 
       <TabsContent value="calendar" className="m-0">
-        <WeeklyCalendarView entries={entries || []} weekDays={weekDays} />
+        <WeeklyCalendarView 
+          entries={entries || []} 
+          weekDays={weekDays}
+          onEditEntry={setEditingEntry}
+          onAddEntry={(date) => {
+            setAddEntryDate(date)
+            setAddEntryOpen(true)
+          }}
+          onApproveEntry={(id) => employee?.id && approveEntry({ id, approvedBy: employee.id })}
+          onDeleteEntry={handleDelete}
+          canApprove={can.approveTimesheet()}
+          canEdit={can.editTimesheet()}
+          currentUserId={employee?.id}
+        />
       </TabsContent>
     </Tabs>
 

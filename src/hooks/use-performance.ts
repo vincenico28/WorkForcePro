@@ -56,3 +56,26 @@ export function useUpdatePerformanceReview() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['performance-reviews'] }),
   })
 }
+
+export function useAcknowledgePerformanceReview() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, employeeComments }: { id: string; employeeComments?: string }) => {
+      const { data, error } = await supabase
+        .from('performance_reviews')
+        .update({
+          status: 'acknowledged',
+          acknowledged_at: new Date().toISOString(),
+          employee_comments: employeeComments || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['performance-reviews'] }),
+  })
+}
+

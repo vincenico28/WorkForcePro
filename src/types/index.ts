@@ -196,6 +196,7 @@ export interface PerformanceReview {
   reviewer_id: string
   review_period_start: string
   review_period_end: string
+  review_type?: 'quarterly' | 'semi_annual' | 'annual' | 'probationary' | 'project'
   overall_rating?: number
   job_knowledge_rating?: number
   work_quality_rating?: number
@@ -205,8 +206,11 @@ export interface PerformanceReview {
   strengths?: string
   improvements?: string
   goals?: string
+  goals_data?: Array<{ title: string; target: string; progress: number }>
+  employee_comments?: string
   status: 'draft' | 'submitted' | 'acknowledged'
   submitted_at?: string
+  acknowledged_at?: string
   created_at: string
   employees?: Employee
   reviewer?: Employee
