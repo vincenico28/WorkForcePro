@@ -1,6 +1,6 @@
 # 🏢 Priority Handling Logistics, Inc. — Workforce Management Pro
 
-An enterprise-grade, intelligent, and highly secure human resources and workforce management platform. Engineered for **Priority Handling Logistics, Inc.**, this system integrates **advanced AI biometric verification**, **real-time GPS geofencing & velocity anomaly detection**, **mandatory multi-stage authentication for leadership**, an **embedded Gemini AI HR Assistant**, **Philippine DOLE / BIR Statutory Compliance Suites**, **Multi-Stage Leave Management with Republic Acts Legal Rights Reference**, and an **Enterprise HR Performance Appraisal & Review Suite** into a modern, responsive web application.
+An enterprise-grade, intelligent, and highly secure human resources and workforce management platform. Engineered for **Priority Handling Logistics, Inc.**, this system integrates **advanced AI biometric verification**, **real-time GPS geofencing & velocity anomaly detection**, **mandatory multi-stage authentication for leadership**, an **embedded Gemini AI HR Assistant**, **Philippine DOLE / BIR Statutory Compliance Suites**, **Multi-Stage Leave Management with Republic Acts Legal Rights Reference**, an **Enterprise HR Performance Appraisal & Review Suite**, an **Automated AI Roster & Shift Scheduler**, and a **Biometric-Integrated Timesheet & Overtime Audit Engine** into a modern, responsive web application.
 
 ---
 
@@ -32,7 +32,8 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 - **Conversational HR Querying:** Floating AI Assistant answers operational queries (e.g., *"Who is on leave today?"*, *"Summarize late arrivals this week"*).
 - **AI Policy Evaluator for Leaves:** Evaluates employee leave requests against company attendance patterns and policy guidelines with one-click recommendations.
 - **AI HR Performance & Workforce Insights:** Executive-level synthesis of workforce strengths, bottleneck identification, and logistics training recommendations.
-- **AI Roster Optimizer:** Proactively scans shift schedules to prevent employee burnout and ensure 100% operational coverage.
+- **AI Smart Roster Optimizer:** Proactively scans shift schedules to prevent employee burnout and ensure 100% operational coverage under DOLE labor standards.
+- **AI Timesheet & Payroll Pre-Check:** Automatically audits weekly timesheet logs, detects excessive overtime (>4h/day), and verifies payroll readiness.
 
 ---
 
@@ -85,21 +86,39 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
   - 🔵 **Meets Expectations ($3.0 - 3.9$):** Standard Base Salary.
   - 🟡 **Needs Improvement ($2.0 - 2.9$):** 30-Day Coaching & Action Plan.
   - 🔴 **Critical / Unsatisfactory ($< 2.0$):** Escalated to Formal HR PIP.
-- **Official Branded Appraisal Sheet Dialog:** Branded Priority Handling Logistics printable evaluation sheet with competency radar graph and print/PDF export.
+- **Official Branded Appraisal Sheet Dialog:** Printable evaluation sheet with competency radar graph and PDF export.
 
-### ⏱️ 5. Timesheet & Weekly Calendar View
-- **Table View:** Multi-employee weekly matrix with bulk approval checkboxes and overtime tracking.
-- **Interactive Weekly Calendar View:** 7-day responsive shift calendar with in-card quick actions (Approve, Edit, Delete) and "+ Log Hours" empty state date population.
-- **Auto-fill Week Schedule:** Automatically logs standard 8-hour schedule across missing workdays in one click.
+### 📅 5. HR Shift Scheduling & Roster Management Suite
+- **✨ AI Smart Auto-Scheduler Wizard:**
+  - Configurable scopes: *Current Work Week (Mon–Fri)*, *Next Work Week*, or *Full Month*.
+  - Target *All Departments* or specific operational units (Logistics, Warehouse, Dispatch).
+  - Strategies: *Balanced Equitable Rotation* (DOLE compliant), *Daytime Peak Focus*, or *Fair Weekly Rotation*.
+  - **Guaranteed Leave & Rest Day Protection:** Automatically preserves approved statutory leaves (`L`) and rest days (`OFF`).
+- **👥 1-Click Bulk Shift Assignment:** Mass-assign shifts to entire departments across custom date ranges with weekend skipping.
+- **📋 Copy Previous Week Schedule ("Repeat Pattern"):** Duplicates previous week's roster in 1 click with automatic leave adjustments.
+- **📊 Real-Time Labor & Hours Summary Column:** Displays each employee's total scheduled shifts, cumulative hours, and leave count on the calendar matrix.
+- **🖱️ Click-to-Edit Cell Interactions:** Direct shift switching, quick shift deletion, and empty-cell fast assignment.
+- **🧹 Safe Schedule Clear Tool:** Resets working shifts for a week or month while keeping approved statutory leaves safe.
+- **🛡️ DOLE Labor Standards Health Check:** AI audit evaluating 40–48h workweek compliance (Art. 83) and 24-consecutive-hour rest periods (Art. 91).
 
-### 👥 6. Employee Directory & Org Hierarchy
+### ⏱️ 6. Biometric Timesheet & Overtime Management Suite
+- **🔄 1-Click Biometric Attendance Sync:** Automatically pulls verified clock-in and clock-out timestamps from face-recognition and GPS attendance records (`attendance_records`) into official timesheet entries.
+- **⚡ 1-Click "Approve All Pending":** Fast-tracks approval of all unverified entries across the workforce for the payroll cutoff.
+- **🚫 Reject Time Entry with Feedback:** Supervisors can reject inaccurate time logs with custom explanation notes for employee resubmission.
+- **🇵🇭 DOLE Overtime & Work-Hour Segregation:** Clear itemization of **Regular Hours** ($\le 8\text{h}$), **Overtime Hours** ($> 8\text{h}$ with $+25\%$ premium), and Total Paid Hours.
+- **🔍 Multi-Level Department & Status Filter Suite:** Filter by Department, Employee, or Status (*All Logs*, *Pending Approval*, *Approved*, *With Overtime*).
+- **🧠 AI Timesheet & Payroll Readiness Audit:** Audits overtime trends, missing logs, and ensures clean payroll readiness.
+- **📥 Payroll-Ready CSV Export:** Formatted for direct integration with Philippine banking and payroll disbursement systems.
+
+### 🔔 7. Realtime Notification Broadcaster & Sound Engine
+- **Automated Broadcast Triggers:** New announcements automatically generate and dispatch notification alerts to all active employees.
+- **Web Audio Crystal Chime:** Synthesizes a dual-tone audio notification chime upon new notification arrival with zero external asset dependencies.
+- **Live Websocket Subscriptions:** Connected via Supabase Realtime for instant badge counters and bell ring animations.
+
+### 👥 8. Employee Directory & Org Hierarchy
 - **Interactive Org Chart:** Visual departmental hierarchy showing reporting lines, supervisor chains, and positions.
 - **Digital ID Card Generator:** Instant printable CR80 standard employee badge preview with scannable QR and barcode components.
 - **Comprehensive Profiles:** Detailed emergency contacts, employment history, compensation rates, and document repositories.
-
-### 📅 7. Shift Scheduling & Roster Management
-- **Visual Roster Planner:** Interactive shift calendar for assigning individual and recurring team shifts.
-- **AI Auto-Scheduler & Health Check:** Analyzes staff workload to prevent burnout and ensure 100% shift coverage across departments.
 
 ---
 
@@ -109,8 +128,9 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
   - Standard employees authenticate with email/password.
   - Privileged roles (`super_admin`, `admin`, `hr_manager`, `team_supervisor`) automatically trigger mandatory, single-use Supabase Magic Link OTPs on login, eliminating password-reuse vulnerabilities.
 - **PostgreSQL Row-Level Security (RLS):** All data is isolated by `org_id` and role permissions at the database engine level.
-- **Hardened Database Functions:** Trigger functions secured with strict execution revocations (`REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated`) to clear all security linter advisories.
+- **Hardened Database Functions:** Trigger functions secured with strict execution revocations (`REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated`) to eliminate security vulnerabilities.
 - **Encrypted Storage:** Biometric landmarks and compliance documents stored in protected, access-controlled Supabase Storage buckets.
+- **Clean Auth State:** Automatic cleanup of URL token hashes to eliminate session expiration console warnings.
 
 ---
 
@@ -131,8 +151,9 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 | **Language** | TypeScript (Strict Type Safety) |
 | **Styling & Components** | Tailwind CSS + `shadcn/ui` + Lucide Icons |
 | **Motion & UX** | Framer Motion |
+| **Audio Engine** | Web Audio API (Crystal Chime Synthesis) |
 | **State & Caching** | `@tanstack/react-query` + Zustand |
-| **Database & Auth** | Supabase (PostgreSQL 15 + RLS + GoTrue Auth) |
+| **Database & Auth** | Supabase (PostgreSQL 15 + RLS + GoTrue Auth + Realtime) |
 | **AI Microservice** | FastAPI (Python 3.10) + OpenCV + `dlib` / `face_recognition` |
 | **AI LLM Integration** | Google Gemini Flash API (`@google/genai`) |
 | **Mapping** | Leaflet + `react-leaflet` + OpenStreetMap |

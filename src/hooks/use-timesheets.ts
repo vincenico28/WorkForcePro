@@ -136,6 +136,29 @@ export function useBulkApproveTimesheetEntries() {
   })
 }
 
+export function useRejectTimesheetEntry() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes?: string }) => {
+      const { data, error } = await supabase
+        .from('timesheet_entries')
+        .update({
+          is_approved: false,
+          approved_by: null,
+          approved_at: null,
+          notes: notes || 'Rejected by supervisor',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['timesheet-entries'] }),
+  })
+}
+
 export function useBulkCreateTimesheetEntries() {
   const qc = useQueryClient()
   return useMutation({

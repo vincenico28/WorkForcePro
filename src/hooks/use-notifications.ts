@@ -3,11 +3,13 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth.store'
 import { playNotificationSound } from '@/utils/notification-sound'
 import type { Notification } from '@/types'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 export function useNotifications() {
   const { employee } = useAuthStore()
   const qc = useQueryClient()
+  const previousLatestIdRef = useRef<string | null>(null)
+  const isInitialLoadRef = useRef(true)
 
   // Realtime subscription with sound chime
   useEffect(() => {
@@ -18,8 +20,8 @@ export function useNotifications() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `employee_id=eq.${employee.id}` },
-        (payload) => {
-          // Play ring bell audio chime
+        () => {
+          // Play ring bell audio chime automatically on realtime push
           playNotificationSound()
           qc.invalidateQueries({ queryKey: ['notifications', employee.id] })
         }
@@ -38,7 +40,7 @@ export function useNotifications() {
     }
   }, [employee, qc])
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['notifications', employee?.id],
     queryFn: async () => {
       if (!employee) return []
@@ -53,7 +55,28 @@ export function useNotifications() {
       return data as Notification[]
     },
     enabled: !!employee,
+    refetchInterval: 10000, // Poll every 10s as background fallback
   })
+
+  // Detect new unread notification arriving from query refetch
+  useEffect(() => {
+    if (!query.data || query.data.length === 0) return
+
+    const latest = query.data[0]
+    if (isInitialLoadRef.current) {
+      previousLatestIdRef.current = latest.id
+      isInitialLoadRef.current = false
+      return
+    }
+
+    if (previousLatestIdRef.current && latest.id !== previousLatestIdRef.current && !latest.is_read) {
+      // New notification arrived! Play chime automatically
+      playNotificationSound()
+    }
+    previousLatestIdRef.current = latest.id
+  }, [query.data])
+
+  return query
 }
 
 export function useMarkNotificationRead() {

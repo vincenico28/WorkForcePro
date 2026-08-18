@@ -63,6 +63,13 @@ function App() {
       }
     })
 
+    // Clean up stale auth tokens from URL after initial consumption
+    if (typeof window !== 'undefined' && window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('error'))) {
+      setTimeout(() => {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+      }, 500)
+    }
+
     return () => subscription.unsubscribe()
   }, [initialize])
 
