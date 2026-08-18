@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth.store'
+import { playNotificationSound } from '@/utils/notification-sound'
 import type { Notification } from '@/types'
 import { useEffect } from 'react'
 
@@ -8,15 +9,24 @@ export function useNotifications() {
   const { employee } = useAuthStore()
   const qc = useQueryClient()
 
-  // Realtime subscription
+  // Realtime subscription with sound chime
   useEffect(() => {
     if (!employee) return
 
     const channel = supabase
-      .channel('public:notifications')
+      .channel(`public:notifications:${employee.id}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `employee_id=eq.${employee.id}` },
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `employee_id=eq.${employee.id}` },
+        (payload) => {
+          // Play ring bell audio chime
+          playNotificationSound()
+          qc.invalidateQueries({ queryKey: ['notifications', employee.id] })
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `employee_id=eq.${employee.id}` },
         () => {
           qc.invalidateQueries({ queryKey: ['notifications', employee.id] })
         }

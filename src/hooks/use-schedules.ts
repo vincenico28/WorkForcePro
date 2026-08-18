@@ -49,7 +49,7 @@ export function useCreateSchedule() {
     mutationFn: async (schedule: Partial<Schedule>) => {
       const { data, error } = await supabase
         .from('schedules')
-        .insert(schedule)
+        .upsert(schedule, { onConflict: 'employee_id,date' })
         .select()
         .single()
       if (error) throw error
@@ -65,7 +65,7 @@ export function useBulkCreateSchedule() {
     mutationFn: async (schedules: Partial<Schedule>[]) => {
       const { data, error } = await supabase
         .from('schedules')
-        .insert(schedules)
+        .upsert(schedules, { onConflict: 'employee_id,date' })
         .select()
       if (error) throw error
       return data

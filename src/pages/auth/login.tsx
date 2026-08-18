@@ -39,20 +39,27 @@ export default function LoginPage() {
     const isHigherUp = currentEmp && ['super_admin', 'admin', 'hr_manager', 'team_supervisor'].includes(currentEmp.role)
 
     if (isHigherUp) {
-      // Automatically mandate Magic Link authentication for higher-ups
-      await useAuthStore.getState().signOut()
-      const { error: otpError } = await supabase.auth.signInWithOtp({ email })
-      setIsLoading(false)
-
-      if (otpError) {
-        toast.error('Failed to send secure login link', { description: otpError.message })
-        return
-      }
-
+      // Immediately switch UI to OTP notice screen without delay
       setOtpSent(true)
-      toast.success('Security Notice', { 
-        description: 'Management accounts require Magic Link authentication. A secure login link has been sent to your email.' 
+      setIsLoading(false)
+      toast.info('Security Notice', { 
+        description: 'Management accounts require Magic Link authentication. Sending secure link to your email...' 
       })
+
+      // Asynchronously complete sign out and dispatch the Magic Link OTP
+      try {
+        await useAuthStore.getState().signOut()
+        const { error: otpError } = await supabase.auth.signInWithOtp({ email })
+        if (otpError) {
+          toast.error('Failed to send secure login link', { description: otpError.message })
+        } else {
+          toast.success('Security Notice', { 
+            description: 'Management accounts require Magic Link authentication. A secure login link has been sent to your email.' 
+          })
+        }
+      } catch (err: any) {
+        toast.error('Failed to dispatch secure link', { description: err.message })
+      }
       return
     }
 

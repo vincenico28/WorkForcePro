@@ -88,9 +88,40 @@ export function useCreateAnnouncement() {
         .select()
         .single()
       if (error) throw error
+
+      // Auto-broadcast notifications to all active employees in the organization
+      try {
+        const { data: emps } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('org_id', ORG_ID)
+          .eq('status', 'active')
+
+        if (emps && emps.length > 0) {
+          const notifs = emps.map(emp => ({
+            employee_id: emp.id,
+            title: `📢 New Announcement: ${ann.title}`,
+            message: ann.content 
+              ? (ann.content.length > 120 ? ann.content.substring(0, 117) + '...' : ann.content)
+              : 'New company-wide announcement published',
+            type: ann.type === 'urgent' ? 'warning' : 'info',
+            category: 'announcement',
+            action_url: '/app/announcements',
+            is_read: false,
+          }))
+
+          await supabase.from('notifications').insert(notifs)
+        }
+      } catch (notifErr) {
+        console.warn('Failed to broadcast announcement notifications:', notifErr)
+      }
+
       return data
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['announcements'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['announcements'] })
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
   })
 }
 
