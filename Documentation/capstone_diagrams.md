@@ -259,28 +259,37 @@ For the full multi-level Data Flow Diagrams and Data Dictionary, see [data_flow_
 
 ### Context Diagram (Level 0 DFD)
 ```mermaid
-graph TD
-    EMP["👤 Employee"]
-    MGR["👔 HR Manager / Supervisor"]
-    ADM["⚙️ System Administrator"]
-    AI_EXT["🤖 Face Recognition Microservice"]
-    GEMINI["✨ Google Gemini API"]
+graph LR
+    subgraph Actors ["👥 System Actors"]
+        EMP["👤 Employee"]
+        MGR["👔 HR Manager / Supervisor"]
+        ADM["⚙️ System Administrator"]
+    end
 
-    SYS(("0.0<br/><b>Smart Workforce<br/>Management System</b>"))
+    SYS(["0.0<br/><b>Smart Workforce<br/>Management System</b><br/><i>(WorkForcePro)</i>"])
 
-    EMP -->|"Credentials, Face Frame, GPS, Leave Requests"| SYS
-    SYS -->|"Timesheets, Schedules, Leave Status, AI Chat"| EMP
+    subgraph Services ["🌐 External Services"]
+        AI_EXT["🤖 Face Recognition API"]
+        GEMINI["✨ Google Gemini API"]
+    end
 
-    MGR -->|"Shifts, Leave Approvals, Payroll Runs"| SYS
-    SYS -->|"Attendance Logs, Geofence Alerts, BI Reports"| MGR
+    EMP -->|"Clock-in Image, GPS, Leave Forms"| SYS
+    SYS -->|"Timesheets, Roster, Payslips, Chat"| EMP
 
-    ADM -->|"User Roles, Geofence Boundaries, Audit Rules"| SYS
-    SYS -->|"Audit Logs, Security Telemetry"| ADM
+    MGR -->|"Rosters, Leave Approvals, Payroll Runs"| SYS
+    SYS -->|"Attendance Feeds, Reports, Alerts"| MGR
 
-    SYS -->|"Face Encoding & Live Image"| AI_EXT
-    AI_EXT -->|"Confidence Score & Match Flag"| SYS
+    ADM -->|"Roles, Geofence Config, Policies"| SYS
+    SYS -->|"Audit Logs, System Telemetry"| ADM
 
-    SYS -->|"Context Prompt"| GEMINI
-    GEMINI -->|"Natural Language Assistant Stream"| SYS
+    SYS -->|"Biometric Vectors"| AI_EXT
+    AI_EXT -->|"Match Results"| SYS
+
+    SYS -->|"Context Prompts"| GEMINI
+    GEMINI -->|"AI Assistant Replies"| SYS
+
+    style SYS fill:#1d4ed8,stroke:#1e40af,stroke-width:3px,color:#ffffff
+    style Actors fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
+    style Services fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
 ```
 

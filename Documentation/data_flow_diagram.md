@@ -18,44 +18,52 @@ This document presents the complete Data Flow Diagram (DFD) specifications for t
 
 ## 2. Context Diagram (Level 0 DFD)
 
-The Context Diagram establishes the global boundary of the **Smart Workforce Management System**, identifying all interacting external entities and high-level input/output data streams.
+The Context Diagram establishes the global boundary of the **Smart Workforce Management System**, identifying all interacting external entities and high-level input/output data streams in a clean, non-overlapping horizontal architecture.
 
 ```mermaid
-graph TD
-    %% External Entities
-    EMP["👤 Employee"]
-    MGR["👔 HR Manager / Supervisor"]
-    ADM["⚙️ System Administrator"]
-    AI_EXT["🤖 Face Recognition Microservice\n(FastAPI / dlib)"]
-    GEMINI["✨ Google Gemini API\n(LLM Engine)"]
+graph LR
+    %% Left Side: Human Entities
+    subgraph Actors ["👥 System Actors"]
+        EMP["👤 Employee"]
+        MGR["👔 HR Manager / Supervisor"]
+        ADM["⚙️ System Administrator"]
+    end
 
-    %% Central System Process
-    SYS(("0.0<br/><b>Smart Workforce<br/>Management System</b><br/>(WorkForcePro)"))
+    %% Center: System Process
+    SYS(["0.0<br/><b>Smart Workforce<br/>Management System</b><br/><i>(WorkForcePro)</i>"])
 
-    %% Employee Flows
-    EMP -->|"Login Credentials, Camera Stream & Geolocation,<br/>Leave Requests, Chat Queries"| SYS
-    SYS -->|"Timesheet Logs, Shift Schedules, Leave Status,<br/>Notifications, AI Chat Responses"| EMP
+    %% Right Side: External AI & Cloud Services
+    subgraph Services ["🌐 External Services"]
+        AI_EXT["🤖 Face Recognition API<br/><i>(FastAPI + dlib)</i>"]
+        GEMINI["✨ Google Gemini API<br/><i>(LLM Engine)</i>"]
+    end
 
-    %% HR Manager Flows
-    MGR -->|"Shift Schedules, Leave Approvals,<br/>Payroll Adjustments, Announcements"| SYS
-    SYS -->|"Attendance Logs, Geofence Alerts,<br/>Leave Balances, Analytics & BI Reports"| MGR
+    %% Employee Interactions
+    EMP -->|"Clock-in Image, GPS, Leave Forms"| SYS
+    SYS -->|"Timesheets, Roster, Payslips, Chat"| EMP
 
-    %% System Admin Flows
-    ADM -->|"User Role Assignment, Geofence Radius Config,<br/>Audit Policies & System Settings"| SYS
-    SYS -->|"System Audit Logs, Security Telemetry,<br/>Health Metrics"| ADM
+    %% Manager Interactions
+    MGR -->|"Rosters, Leave Approvals, Payroll Runs"| SYS
+    SYS -->|"Attendance Feeds, Reports, Alerts"| MGR
 
-    %% External Services Flows
-    SYS -->|"Face Encodings & Captured Frame (Base64)"| AI_EXT
-    AI_EXT -->|"Confidence Score & Verification Result"| SYS
+    %% Admin Interactions
+    ADM -->|"Roles, Geofence Config, Policies"| SYS
+    SYS -->|"Audit Logs, System Telemetry"| ADM
 
-    SYS -->|"Context-Enriched Prompt & Schema Context"| GEMINI
-    GEMINI -->|"Natural Language Query Response"| SYS
+    %% External Services Interactions
+    SYS -->|"Biometric Vector Payloads"| AI_EXT
+    AI_EXT -->|"Face Match Results"| SYS
+
+    SYS -->|"Context Prompts"| GEMINI
+    GEMINI -->|"AI Assistant Streams"| SYS
 
     %% Styling
-    style SYS fill:#2563eb,stroke:#1e40af,stroke-width:3px,color:#ffffff
-    style EMP fill:#f8fafc,stroke:#64748b,stroke-width:2px
-    style MGR fill:#f8fafc,stroke:#64748b,stroke-width:2px
-    style ADM fill:#f8fafc,stroke:#64748b,stroke-width:2px
+    style SYS fill:#1d4ed8,stroke:#1e40af,stroke-width:3px,color:#ffffff
+    style Actors fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
+    style Services fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
+    style EMP fill:#ffffff,stroke:#64748b,stroke-width:2px
+    style MGR fill:#ffffff,stroke:#64748b,stroke-width:2px
+    style ADM fill:#ffffff,stroke:#64748b,stroke-width:2px
     style AI_EXT fill:#fdf4ff,stroke:#c084fc,stroke-width:2px
     style GEMINI fill:#f0fdf4,stroke:#4ade80,stroke-width:2px
 ```
@@ -64,94 +72,105 @@ graph TD
 
 ## 3. Level 1 Data Flow Diagram (Decomposed System Architecture)
 
-The Level 1 DFD decomposes the system into six primary sub-processes, identifying interactions between entities, processes, and persistent data stores.
+The Level 1 DFD decomposes the system into six modular sub-processes, structured across distinct Actor, Process, Storage, and External Service tiers to eliminate visual collisions and edge stacking.
 
 ```mermaid
-graph TD
-    %% External Entities
-    EMP["👤 Employee"]
-    MGR["👔 HR Manager / Supervisor"]
-    ADM["⚙️ System Administrator"]
-    AI_SRV["🤖 Face Microservice"]
-    GEMINI["✨ Gemini API"]
+graph LR
+    %% Column 1: Actors
+    subgraph T_Actors ["👥 External Entities"]
+        EMP["👤 Employee"]
+        MGR["👔 HR Manager"]
+        ADM["⚙️ Admin"]
+    end
 
-    %% Data Stores
-    D1[("D1: User Profiles & Roles\n(profiles, roles_permissions)")]
-    D2[("D2: Attendance & Geofence Logs\n(attendance_records, timesheet_entries)")]
-    D3[("D3: Shift & Scheduling Data\n(shifts, schedules, shift_templates)")]
-    D4[("D4: Leave & Compliance Records\n(leave_requests, leave_balances)")]
-    D5[("D5: Payroll & Performance\n(payroll_records, performance_reviews)")]
-    D6[("D6: Storage & Attachments\n(avatars, leave_attachments)")]
-    D7[("D7: Realtime & Notifications\n(notifications, messages, channels)")]
+    %% Column 2: Processes
+    subgraph T_Processes ["⚙️ System Processes"]
+        P1(["1.0<br/>Authentication & RBAC"])
+        P2(["2.0<br/>Biometric & GPS Attendance"])
+        P3(["3.0<br/>Shift & Scheduling Engine"])
+        P4(["4.0<br/>Leave & Compliance"])
+        P5(["5.0<br/>Timesheet & Payroll Sync"])
+        P6(["6.0<br/>AI Chat & Realtime Alerts"])
+    end
 
-    %% Primary Processes
-    P1(("1.0<br/>Authentication &<br/>Role-Based Access"))
-    P2(("2.0<br/>Biometric & GPS<br/>Attendance Verification"))
-    P3(("3.0<br/>Shift & Schedule<br/>Orchestration"))
-    P4(("4.0<br/>Leave & Statutory<br/>Compliance Management"))
-    P5(("5.0<br/>Timesheet Sync &<br/>Payroll Calculation"))
-    P6(("6.0<br/>AI Assistance &<br/>Real-Time Telemetry"))
+    %% Column 3: Data Stores
+    subgraph T_Stores ["🗄️ Database Stores"]
+        D1[("D1: Profiles & Roles")]
+        D2[("D2: Attendance & Timesheets")]
+        D3[("D3: Shifts & Rosters")]
+        D4[("D4: Leave & Balances")]
+        D5[("D5: Payroll & KPIs")]
+        D6[("D6: File Storage Buckets")]
+        D7[("D7: Realtime Notifications")]
+    end
 
-    %% Process 1.0 Flows
-    EMP -->|"Email & Password"| P1
-    MGR -->|"Credentials & Org Token"| P1
-    ADM -->|"SuperAdmin Auth & Role Config"| P1
-    P1 <-->|"Validate Credentials & Permissions"| D1
-    P1 -->|"Authenticated JWT & Session"| EMP
-    P1 -->|"Authenticated Session"| MGR
+    %% Column 4: External Services
+    subgraph T_Services ["🤖 External Microservices"]
+        AI_SRV["🤖 Face Microservice"]
+        GEMINI["✨ Gemini 2.5 API"]
+    end
 
-    %% Process 2.0 Flows
-    EMP -->|"Selfie Frame + GPS Coordinates"| P2
-    P2 <-->|"Fetch Stored Face Profile"| D1
-    P2 -->|"Send Image & Profile Vectors"| AI_SRV
-    AI_SRV -->|"Match Result (True/False)"| P2
-    P2 -->|"Write Clock In/Out Event"| D2
-    P2 -->|"Upload Selfie Evidence"| D6
-    P2 -->|"Geofence / Anomaly Trigger"| D7
-    P2 -->|"Clock Status Feedback"| EMP
+    %% --- 1.0 Auth Flows ---
+    EMP -->|"Login Info"| P1
+    MGR -->|"Credentials"| P1
+    ADM -->|"Role Config"| P1
+    P1 <-->|"Auth & Policies"| D1
+    P1 -.->|"JWT Session"| EMP
 
-    %% Process 3.0 Flows
-    MGR -->|"Create/Assign Shift Patterns"| P3
-    P3 <-->|"Store & Query Schedules"| D3
-    P3 -->|"Fetch Assigned Schedule"| EMP
-    P3 -->|"Shift Schedule Data"| P2
+    %% --- 2.0 Attendance Flows ---
+    EMP -->|"Selfie + GPS"| P2
+    P2 <-->|"Check Stored Face"| D1
+    P2 -->|"Image Vector"| AI_SRV
+    AI_SRV -->|"Match Result"| P2
+    P2 -->|"Log Event"| D2
+    P2 -->|"Selfie Upload"| D6
+    P2 -->|"Geofence Alerts"| D7
+    P2 -.->|"Clock Confirmation"| EMP
 
-    %% Process 4.0 Flows
-    EMP -->|"Submit Leave Request + Medical Doc"| P4
-    P4 -->|"Store Document"| D6
-    P4 <-->|"Check Balance & DOLE Limits"| D4
-    P4 -->|"Trigger Approval Alert"| D7
-    MGR -->|"Review & Approve/Reject"| P4
-    P4 -->|"Update Leave Status & Balance"| D4
-    P4 -->|"Auto-Sync Leave to Roster"| D3
-    P4 -->|"Approval Notification"| EMP
+    %% --- 3.0 Scheduling Flows ---
+    MGR -->|"Publish Shifts"| P3
+    P3 <-->|"Shift Templates"| D3
+    P3 -.->|"View Schedule"| EMP
+    P3 -->|"Shift Windows"| P2
 
-    %% Process 5.0 Flows
-    D2 -->|"Aggregated Work Hours"| P5
-    D4 -->|"Paid/Unpaid Leave Days"| P5
-    MGR -->|"Generate Payroll Run"| P5
-    P5 <-->|"Compute Deductions & Net Pay"| D5
-    P5 -->|"Disbursed Payslip View"| EMP
-    P5 -->|"Summary Payroll Sheet"| MGR
+    %% --- 4.0 Leave Flows ---
+    EMP -->|"Leave Application"| P4
+    P4 -->|"Medical Attachments"| D6
+    P4 <-->|"Check Quotas"| D4
+    P4 -->|"Review Alert"| D7
+    MGR -->|"Approve/Reject"| P4
+    P4 -->|"Update Balance"| D4
+    P4 -->|"Sync On-Leave"| D3
+    P4 -.->|"Decision Status"| EMP
 
-    %% Process 6.0 Flows
-    EMP -->|"Natural Language Query / Chat"| P6
-    P6 <-->|"Fetch Org Context & Schedules"| D3
-    P6 <-->|"Fetch Timesheet Summary"| D2
-    P6 -->|"Prompt + Context Data"| GEMINI
-    GEMINI -->|"Structured Analysis / Text"| P6
-    P6 -->|"Streamed Assistant Reply"| EMP
-    D7 <-->|"Subscribe / Dispatch WebSockets"| P6
-    P6 -->|"In-App Alerts & Chat Stream"| EMP
-    P6 -->|"Broadcast Alerts"| MGR
+    %% --- 5.0 Payroll Flows ---
+    D2 -->|"Logged Hours"| P5
+    D4 -->|"Paid Leave Days"| P5
+    MGR -->|"Run Payroll"| P5
+    P5 <-->|"Ledger Records"| D5
+    P5 -.->|"Payslip View"| EMP
+
+    %% --- 6.0 AI & Realtime Flows ---
+    EMP -->|"Chat Query"| P6
+    P6 <-->|"Context Data"| D2
+    P6 <-->|"Roster Info"| D3
+    P6 -->|"Prompt + Context"| GEMINI
+    GEMINI -->|"Streamed Reply"| P6
+    P6 -.->|"Assistant Output"| EMP
+    D7 <-->|"Live Push/WS"| P6
 
     %% Styling
-    style P1 fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P2 fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P3 fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P4 fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P5 fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P6 fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    style T_Actors fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
+    style T_Processes fill:#eff6ff,stroke:#60a5fa,stroke-width:1px,stroke-dasharray: 4 4
+    style T_Stores fill:#f0fdf4,stroke:#86efac,stroke-width:1px,stroke-dasharray: 4 4
+    style T_Services fill:#fdf4ff,stroke:#d8b4fe,stroke-width:1px,stroke-dasharray: 4 4
+
+    style P1 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    style P2 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    style P3 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    style P4 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    style P5 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
+    style P6 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
 ```
 
 ---
