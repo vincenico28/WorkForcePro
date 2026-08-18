@@ -251,3 +251,36 @@ graph TD
     
     B -->|"Reduced Data Payload"| C
 ```
+
+---
+
+## 3.x Data Flow Diagrams (DFD)
+For the full multi-level Data Flow Diagrams and Data Dictionary, see [data_flow_diagram.md](file:///c:/Users/Nico/Workforce-ManagementPro-main/Documentation/data_flow_diagram.md).
+
+### Context Diagram (Level 0 DFD)
+```mermaid
+graph TD
+    EMP["👤 Employee"]
+    MGR["👔 HR Manager / Supervisor"]
+    ADM["⚙️ System Administrator"]
+    AI_EXT["🤖 Face Recognition Microservice"]
+    GEMINI["✨ Google Gemini API"]
+
+    SYS(("0.0<br/><b>Smart Workforce<br/>Management System</b>"))
+
+    EMP -->|"Credentials, Face Frame, GPS, Leave Requests"| SYS
+    SYS -->|"Timesheets, Schedules, Leave Status, AI Chat"| EMP
+
+    MGR -->|"Shifts, Leave Approvals, Payroll Runs"| SYS
+    SYS -->|"Attendance Logs, Geofence Alerts, BI Reports"| MGR
+
+    ADM -->|"User Roles, Geofence Boundaries, Audit Rules"| SYS
+    SYS -->|"Audit Logs, Security Telemetry"| ADM
+
+    SYS -->|"Face Encoding & Live Image"| AI_EXT
+    AI_EXT -->|"Confidence Score & Match Flag"| SYS
+
+    SYS -->|"Context Prompt"| GEMINI
+    GEMINI -->|"Natural Language Assistant Stream"| SYS
+```
+
