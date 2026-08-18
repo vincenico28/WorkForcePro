@@ -30,12 +30,12 @@ graph LR
     end
 
     %% Center: System Process
-    SYS(["0.0<br/><b>Smart Workforce<br/>Management System</b><br/><i>(WorkForcePro)</i>"])
+    SYS(["0.0<br/>Smart Workforce<br/>Management System<br/>(WorkForcePro)"])
 
     %% Right Side: External AI & Cloud Services
     subgraph Services ["🌐 External Services"]
-        AI_EXT["🤖 Face Recognition API<br/><i>(FastAPI + dlib)</i>"]
-        GEMINI["✨ Google Gemini API<br/><i>(LLM Engine)</i>"]
+        AI_EXT["🤖 Face Recognition API<br/>(FastAPI + dlib)"]
+        GEMINI["✨ Google Gemini API<br/>(LLM Engine)"]
     end
 
     %% Employee Interactions
@@ -56,16 +56,6 @@ graph LR
 
     SYS -->|"Context Prompts"| GEMINI
     GEMINI -->|"AI Assistant Streams"| SYS
-
-    %% Styling
-    style SYS fill:#1d4ed8,stroke:#1e40af,stroke-width:3px,color:#ffffff
-    style Actors fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
-    style Services fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
-    style EMP fill:#ffffff,stroke:#64748b,stroke-width:2px
-    style MGR fill:#ffffff,stroke:#64748b,stroke-width:2px
-    style ADM fill:#ffffff,stroke:#64748b,stroke-width:2px
-    style AI_EXT fill:#fdf4ff,stroke:#c084fc,stroke-width:2px
-    style GEMINI fill:#f0fdf4,stroke:#4ade80,stroke-width:2px
 ```
 
 ---
@@ -158,19 +148,6 @@ graph LR
     GEMINI -->|"Streamed Reply"| P6
     P6 -.->|"Assistant Output"| EMP
     D7 <-->|"Live Push/WS"| P6
-
-    %% Styling
-    style T_Actors fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
-    style T_Processes fill:#eff6ff,stroke:#60a5fa,stroke-width:1px,stroke-dasharray: 4 4
-    style T_Stores fill:#f0fdf4,stroke:#86efac,stroke-width:1px,stroke-dasharray: 4 4
-    style T_Services fill:#fdf4ff,stroke:#d8b4fe,stroke-width:1px,stroke-dasharray: 4 4
-
-    style P1 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P2 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P3 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P4 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P5 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
-    style P6 fill:#2563eb,stroke:#1d4ed8,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -212,7 +189,7 @@ graph TD
     EMP -->|"2. Captured Selfie (Base64)"| P2_2
     P2_2 <-->|"Fetch Reference Biometric Encoding"| D1
     P2_2 -->|"POST /api/verify_face (Euclidean Distance)"| AI_EXT
-    AI_EXT -->|"Match Confidence (&lt; 0.6 distance)"| P2_2
+    AI_EXT -->|"Match Confidence (< 0.6 distance)"| P2_2
     P2_2 -->|"Upload Selfie Image"| D6
 
     P2_2 -->|"Identity Verified"| P2_3
@@ -224,12 +201,6 @@ graph TD
     P2_4 -->|"Auto-Aggregate Daily Work Shift"| D2_2
     P2_4 -->|"Push Attendance Confirmation"| EMP
     P2_4 -->|"Broadcast Live Attendance Feed"| D7
-
-    %% Styling
-    style P2_1 fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
-    style P2_2 fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
-    style P2_3 fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
-    style P2_4 fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -279,12 +250,6 @@ graph TD
     P4_4 -->|"Auto-Populate On-Leave Status in Roster"| D3
     P4_4 -->|"Send Approval Notice"| D7
     D7 -->|"Receive Notification"| EMP
-
-    %% Styling
-    style P4_1 fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
-    style P4_2 fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
-    style P4_3 fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
-    style P4_4 fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
 ```
 
 ---

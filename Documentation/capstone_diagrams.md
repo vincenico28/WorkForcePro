@@ -14,9 +14,6 @@ graph LR
     D --> F(Sprint Review)
     F --> G(Sprint Retrospective)
     F --> H[Increment / Release]
-    
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style H fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 ## 2.4.1 Microservices Architecture
@@ -206,10 +203,6 @@ graph TD
     
     A --- B
     B --- C
-    
-    style A fill:#fbb,stroke:#333
-    style B fill:#bfb,stroke:#333
-    style C fill:#bbf,stroke:#333
 ```
 
 ## 2.4.9 Cloud Computing
@@ -266,7 +259,7 @@ graph LR
         ADM["⚙️ System Administrator"]
     end
 
-    SYS(["0.0<br/><b>Smart Workforce<br/>Management System</b><br/><i>(WorkForcePro)</i>"])
+    SYS(["0.0<br/>Smart Workforce<br/>Management System<br/>(WorkForcePro)"])
 
     subgraph Services ["🌐 External Services"]
         AI_EXT["🤖 Face Recognition API"]
@@ -287,9 +280,5 @@ graph LR
 
     SYS -->|"Context Prompts"| GEMINI
     GEMINI -->|"AI Assistant Replies"| SYS
-
-    style SYS fill:#1d4ed8,stroke:#1e40af,stroke-width:3px,color:#ffffff
-    style Actors fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
-    style Services fill:#f8fafc,stroke:#94a3b8,stroke-width:1px,stroke-dasharray: 4 4
 ```
 
