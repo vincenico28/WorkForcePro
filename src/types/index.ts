@@ -181,12 +181,13 @@ export interface Announcement {
   author_id: string
   title: string
   content: string
-  type: 'general' | 'urgent' | 'event' | 'policy'
-  target_roles: string[]
+  type: 'general' | 'urgent' | 'event' | 'policy' | 'holiday' | 'benefits'
+  target_roles?: string[]
+  department_id?: string
   is_pinned: boolean
   published_at?: string
   expires_at?: string
-  views: number
+  views?: number
   created_at: string
   employees?: Employee
 }
