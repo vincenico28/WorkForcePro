@@ -196,3 +196,77 @@ export function useTodayAttendance(employeeId: string) {
     enabled: !!employeeId,
   })
 }
+
+export function useManualAttendanceRecord() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (record: {
+      id?: string
+      employee_id: string
+      date: string
+      clock_in?: string | null
+      clock_out?: string | null
+      total_hours?: number | null
+      overtime_hours?: number | null
+      status: string
+      notes?: string | null
+    }) => {
+      if (record.id) {
+        const { data, error } = await supabase
+          .from('attendance_records')
+          .update({
+            date: record.date,
+            clock_in: record.clock_in || null,
+            clock_out: record.clock_out || null,
+            total_hours: record.total_hours || 0,
+            overtime_hours: record.overtime_hours || 0,
+            status: record.status,
+            notes: record.notes || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', record.id)
+          .select()
+          .single()
+        if (error) throw error
+        return data
+      } else {
+        const { data, error } = await supabase
+          .from('attendance_records')
+          .upsert({
+            employee_id: record.employee_id,
+            date: record.date,
+            clock_in: record.clock_in || null,
+            clock_out: record.clock_out || null,
+            total_hours: record.total_hours || 0,
+            overtime_hours: record.overtime_hours || 0,
+            status: record.status,
+            notes: record.notes || null,
+          }, { onConflict: 'employee_id,date' })
+          .select()
+          .single()
+        if (error) throw error
+        return data
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['attendance'] })
+      qc.invalidateQueries({ queryKey: ['timesheets'] })
+    },
+  })
+}
+
+export function useDeleteAttendanceRecord() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('attendance_records')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['attendance'] })
+    },
+  })
+}
