@@ -93,81 +93,64 @@ graph TD
 ```
 
 ## 2.6.1 System Communication Patterns
-**Requires a diagram:** Yes. Illustrates the synchronous (REST/HTTPS), asynchronous (WebSockets/Realtime), event-driven (Database Triggers/CDC), and AI microservice communication patterns across the platform.
+**Requires a diagram:** Yes. A compressed architecture map illustrating the four core communication paradigms: Synchronous REST, Asynchronous WebSockets, In-Database Triggers, and AI Microservice Inference.
 
 ```mermaid
-graph TB
-    subgraph Client ["💻 Client Tier (React / Vite PWA)"]
-        UI_REST["REST Query Client<br/>(TanStack React Query)"]
-        UI_WS["Realtime WS Listener<br/>(Supabase Realtime Client)"]
-        UI_AI["AI Assistant & Vision Client<br/>(@google/genai / fetch)"]
-        UI_AUDIO["Web Audio Synthesizer<br/>(Notification Chime)"]
+graph LR
+    subgraph Client ["💻 Client Tier (React PWA)"]
+        UI["React Web Client<br/>(TanStack Query + Audio)"]
     end
 
-    subgraph Gateway ["🛡️ API Gateway & Security Tier (Supabase)"]
-        AUTH["GoTrue Auth<br/>(JWT & Magic Links)"]
-        REST_API["PostgREST API<br/>(CRUD & Stored Procedures)"]
-        STORAGE["Object Storage API<br/>(Avatars & Medical Proof)"]
-        RT_BROKER["Realtime Engine<br/>(WebSocket Pub/Sub)"]
+    subgraph BaaS ["🛡️ Backend & Gateway (Supabase)"]
+        AUTH["Auth & Storage<br/>(GoTrue / S3)"]
+        API["PostgREST API<br/>(CRUD Engine)"]
+        RT["Realtime Engine<br/>(WebSocket Pub/Sub)"]
     end
 
-    subgraph DataTier ["🗄️ Persistence & Event Tier (PostgreSQL 15)"]
-        RLS["Row Level Security (RLS)<br/>(Tenant Isolation)"]
-        DB_TABLES[("Relational Tables<br/>employees, schedules,<br/>attendance, leaves, payroll")]
-        WAL_CDC["WAL / Change Data Capture<br/>(Logical Replication)"]
-        TRIGGERS["Database Event Triggers<br/>• trg_broadcast_announcement<br/>• trg_sync_leave_to_schedule"]
+    subgraph DB ["🗄️ Database Tier (PostgreSQL 15)"]
+        RLS["PostgreSQL Tables & RLS"]
+        TRIG["WAL CDC & Event Triggers"]
     end
 
-    subgraph Microservices ["🤖 Specialized AI Services"]
-        FACE_AI["FastAPI Facial Recognition<br/>(OpenCV + dlib / Render)"]
-        GEMINI_AI["Google Gemini 3.5 Flash<br/>(LLM Reasoning & Roster AI)"]
+    subgraph AI ["🤖 AI Microservices"]
+        FACE["FastAPI Engine<br/>(OpenCV + dlib)"]
+        GEM["Google Gemini 3.5<br/>(HR Intelligence)"]
     end
 
-    %% 1. Synchronous REST Patterns
-    UI_REST -->|"1. HTTPS / REST (JWT Auth)"| AUTH
-    UI_REST <-->|"2. HTTPS / REST (CRUD Operations)"| REST_API
-    UI_REST <-->|"3. HTTPS / Multi-part Upload"| STORAGE
-    REST_API -->|"4. Authorize & Execute"| RLS
-    RLS --> DB_TABLES
+    %% Client flows
+    UI <-->|"1. HTTPS / REST (CRUD & JWT)"| API
+    UI <-->|"2. Auth & Storage Uploads"| AUTH
+    RT ==>|"3. WebSockets (Live Push)"| UI
+    UI -->|"4. POST Base64 Selfie"| FACE
+    UI <-->|"5. Context Prompts"| GEM
 
-    %% 2. Asynchronous / Pub-Sub Patterns
-    DB_TABLES -->|"5. Transaction Write (WAL)"| WAL_CDC
-    WAL_CDC -->|"6. Publish CDC Events"| RT_BROKER
-    RT_BROKER ==>|"7. Asynchronous Push (WebSockets)"| UI_WS
-    UI_WS -->|"8. Trigger Audio Alert"| UI_AUDIO
-
-    %% 3. In-Database Event-Driven Patterns
-    DB_TABLES -.->|"9. Fire Trigger on INSERT/UPDATE"| TRIGGERS
-    TRIGGERS -.->|"10. Auto-sync Schedule / Notifications"| DB_TABLES
-
-    %% 4. AI Inference Patterns
-    UI_AI -->|"11. POST /api/verify_face (Base64)"| FACE_AI
-    FACE_AI -.->|"12. JSON Match Result ({match: bool})"| UI_AI
-    UI_AI <-->|"13. JSON RPC / Chat Context Prompts"| GEMINI_AI
+    %% Backend & DB flows
+    API -->|"6. Authorize & Execute"| RLS
+    RLS -.->|"7. DB Trigger / WAL CDC"| TRIG
+    TRIG -.->|"8. Stream CDC Events"| RT
+    FACE -.->|"9. {match: bool}"| UI
 
     classDef client fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0369a1;
-    classDef gateway fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#6b21a8;
-    classDef data fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#047857;
+    classDef baas fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#6b21a8;
+    classDef db fill:#ecfdf5,stroke:#059669,stroke-width:2px,color:#047857;
     classDef ai fill:#fffbeb,stroke:#d97706,stroke-width:2px,color:#b45309;
 
-    class UI_REST,UI_WS,UI_AI,UI_AUDIO client;
-    class AUTH,REST_API,STORAGE,RT_BROKER gateway;
-    class RLS,DB_TABLES,WAL_CDC,TRIGGERS data;
-    class FACE_AI,GEMINI_AI ai;
+    class UI client;
+    class AUTH,API,RT baas;
+    class RLS,TRIG db;
+    class FACE,GEM ai;
 ```
 
-### Communication Patterns Matrix
+### Communication Patterns Summary
 
-| Pattern Type | Communication Style | Protocol / Transport | Source Component | Target Component | Purpose & Use Case |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Request-Response (CRUD)** | Synchronous | HTTPS / REST (JSON) | React UI (`TanStack Query`) | Supabase PostgREST | Querying and mutating employees, schedules, timesheets, and payslips. |
-| **Authentication & Session** | Synchronous | HTTPS / REST (JWT) | React UI (`Supabase Auth`) | GoTrue Auth Server | Magic Link verification, login tokens, and role-based access control. |
-| **Biometric Face Verification** | Synchronous | HTTPS / REST (JSON/Base64) | React UI (Webcam Capture) | FastAPI AI Microservice | Real-time 128D facial landmark extraction and Euclidean distance matching. |
-| **Generative HR Intelligence** | Synchronous | HTTPS / REST (JSON) | React UI / Embedded Assistant | Google Gemini 3.5 API | Natural language querying, leave evaluation, and schedule health audits. |
-| **Change Data Capture (CDC)** | Asynchronous | Logical Replication (WAL) | PostgreSQL Engine | Supabase Realtime Server | Streaming database table changes (`INSERT`/`UPDATE`) to the broker. |
-| **Live Notifications & Radar** | Asynchronous (Push) | WebSockets (`wss://`) | Supabase Realtime Server | React UI (`useNotifications`) | Instant notification delivery, bell animation, and live radar map updates. |
-| **Database Event Triggers** | Event-Driven | PostgreSQL Internal Bus | DB Table Event | PL/pgSQL Stored Triggers | Auto-broadcasting announcements and syncing approved leaves to schedules. |
-| **Binary Document Uploads** | Synchronous | HTTPS / Multipart | React UI | Supabase Storage Bucket | Storing medical certificates, avatars, and official 201 compliance attachments. |
+| Paradigm | Protocol / Flow | Endpoints | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Sync REST (CRUD)** | `HTTPS / REST` (JSON) | `React UI` $\leftrightarrow$ `PostgREST` | Fast transactional CRUD on rosters, timesheets, and leaves. |
+| **Auth & Documents** | `HTTPS / Multipart` | `React UI` $\leftrightarrow$ `GoTrue / Storage` | Magic Link JWT sessions and encrypted 201 file attachments. |
+| **Async Real-Time** | `WebSockets` (`wss://`) | `Realtime` $\rightarrow$ `React UI` | Instant notification chimes, live radar map, and leave updates. |
+| **Event Triggers** | `PostgreSQL Internal` | `DB Triggers` $\rightarrow$ `Tables` | Automated announcement broadcast & leave-to-schedule sync. |
+| **AI Inferences** | `HTTPS / JSON` | `React UI` $\leftrightarrow$ `FastAPI & Gemini` | 128D facial verification and generative HR assistance. |
+
 
 
 ## 2.7 Conceptual Framework
