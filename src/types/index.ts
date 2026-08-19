@@ -13,6 +13,7 @@ export interface Organization {
     lat: number
     lng: number
     radius: number
+    enabled?: boolean
   } | null
   created_at: string
 }

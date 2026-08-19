@@ -1,13 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { format, subDays } from 'date-fns'
-import { Clock, CheckCircle, XCircle, AlertCircle, TimerReset, MapPin, Download, Loader2, Camera } from 'lucide-react'
+import {
+  Clock, CheckCircle, XCircle, AlertCircle, TimerReset, MapPin, Download,
+  Loader2, Camera, ShieldCheck, ShieldAlert, Globe, SwitchCamera, Sliders
+} from 'lucide-react'
 import { useAttendance, useAttendanceRange, useClockIn, useClockOut, useTodayAttendance } from '@/hooks/use-attendance'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -32,7 +37,14 @@ const ATT_STATUS_CONFIG: Record<string, { label: string; className: string; icon
   half_day: { label: 'Half Day', className: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400', icon: AlertCircle },
 }
 
-function ClockWidget() {
+interface GeofenceState {
+  lat: number
+  lng: number
+  radius: number
+  enabled: boolean
+}
+
+function ClockWidget({ geofenceSettings }: { geofenceSettings: GeofenceState | null }) {
   const { employee } = useAuthStore()
   const { data: todayAtt, refetch } = useTodayAttendance(employee?.id ?? '')
   const clockIn = useClockIn()
@@ -53,6 +65,8 @@ function ClockWidget() {
   const [permissionsGranted, setPermissionsGranted] = useState<boolean | null>(null)
   const [checkingPermissions, setCheckingPermissions] = useState(false)
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null)
+
+  const isGeofenceActive = geofenceSettings?.enabled !== false
 
   // Track user location when permissions are granted
   useEffect(() => {
@@ -143,8 +157,8 @@ function ClockWidget() {
           });
         });
         
-        // Strict GPS Validation
-        if (position.coords.accuracy > 60) {
+        // Strict GPS Validation if geofence is enabled
+        if (isGeofenceActive && position.coords.accuracy > 60) {
           toast.error(`GPS Error`, { description: `Signal is too weak (Accuracy: ${Math.round(position.coords.accuracy)}m). Please step outside or near a window for a valid GPS lock.` })
           setShowFaceVerification(false)
           return
@@ -159,18 +173,23 @@ function ClockWidget() {
           .eq('id', ORG_ID)
           .single();
           
-        let officeLat = import.meta.env.VITE_OFFICE_LAT ? parseFloat(import.meta.env.VITE_OFFICE_LAT) : null;
-        let officeLng = import.meta.env.VITE_OFFICE_LNG ? parseFloat(import.meta.env.VITE_OFFICE_LNG) : null;
+        let officeLat = import.meta.env.VITE_OFFICE_LAT ? parseFloat(import.meta.env.VITE_OFFICE_LAT) : 14.5995;
+        let officeLng = import.meta.env.VITE_OFFICE_LNG ? parseFloat(import.meta.env.VITE_OFFICE_LNG) : 120.9842;
         let allowedRadius = import.meta.env.VITE_ALLOWED_RADIUS_METERS ? parseInt(import.meta.env.VITE_ALLOWED_RADIUS_METERS) : 100;
+        let isEnabled = true;
 
         if (org?.geofence_settings) {
-          const settings = org.geofence_settings as { lat: number; lng: number; radius: number };
-          officeLat = settings.lat;
-          officeLng = settings.lng;
-          allowedRadius = settings.radius;
+          const settings = org.geofence_settings as { lat: number; lng: number; radius: number; enabled?: boolean };
+          officeLat = settings.lat ?? officeLat;
+          officeLng = settings.lng ?? officeLng;
+          allowedRadius = settings.radius ?? allowedRadius;
+          if (settings.enabled !== undefined) {
+            isEnabled = settings.enabled;
+          }
         }
 
-        if (officeLat !== null && officeLng !== null && !isNaN(officeLat) && !isNaN(officeLng)) {
+        // ONLY enforce distance restrictions if Geofence is Enabled (ON)
+        if (isEnabled && officeLat !== null && officeLng !== null && !isNaN(officeLat) && !isNaN(officeLng)) {
           const distance = calculateDistance(location.lat, location.lng, officeLat, officeLng);
           if (distance > allowedRadius) {
             toast.error(`Geofence Error: You are ${Math.round(distance)}m away from the office. You must be within ${allowedRadius}m to clock in/out.`);
@@ -187,20 +206,21 @@ function ClockWidget() {
       const t = toast.loading('Clocking in...')
       await clockIn.mutateAsync({ employeeId: employee!.id, location })
       toast.dismiss(t)
-      toast.success('Clocked in!', { description: `${format(new Date(), 'h:mm a')}` })
+      toast.success('Clocked in!', { 
+        description: `${format(new Date(), 'h:mm a')}${!isGeofenceActive ? ' • Remote location allowed' : ''}` 
+      })
     } else {
       const t = toast.loading('Clocking out...')
       
-      // Impossible Travel Detection
+      // Impossible Travel Detection (only evaluated if strict GPS is active)
       let anomalyNote = ''
-      if (location && todayAtt?.location?.clockIn && todayAtt.clock_in) {
+      if (isGeofenceActive && location && todayAtt?.location?.clockIn && todayAtt.clock_in) {
         const clockInLoc = todayAtt.location.clockIn as { lat: number; lng: number }
         const distKm = calculateDistance(clockInLoc.lat, clockInLoc.lng, location.lat, location.lng) / 1000
         const hoursDiff = (new Date().getTime() - new Date(todayAtt.clock_in).getTime()) / 3600000
         
         if (hoursDiff > 0) {
           const speedKmh = distKm / hoursDiff
-          // If speed is greater than a commercial airliner (800 km/h), flag it
           if (speedKmh > 800) {
             anomalyNote = `⚠️ SUSPICIOUS LOCATION: Impossible travel detected (${Math.round(speedKmh)} km/h)`
           }
@@ -215,32 +235,49 @@ function ClockWidget() {
     setShowFaceVerification(false)
   }
 
-  const handleFaceVerify = async (imageSrc: string) => {
-    const faceEncoding = (employee as any).face_encoding
-    if (!faceEncoding) return
-    
-    setIsVerifying(true)
-    const byteString = atob(imageSrc.split(',')[1])
-    const mimeString = imageSrc.split(',')[0].split(':')[1].split(';')[0]
+  const dataURItoBlob = (dataURI: string) => {
+    const byteString = atob(dataURI.split(',')[1])
+    const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
     const ab = new ArrayBuffer(byteString.length)
     const ia = new Uint8Array(ab)
-    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i)
-    const blob = new Blob([ab], { type: mimeString })
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i)
+    }
+    return new Blob([ab], { type: mimeString })
+  }
 
-    const formData = new FormData()
-    formData.append('file', blob, 'verify.jpg')
-    formData.append('known_encoding', JSON.stringify(faceEncoding))
+  const handleFaceVerify = async (imageSrc: string) => {
+    const faceEncoding = (employee as any).face_encoding
+    if (!faceEncoding) {
+      toast.error('No facial profile registered for your account.')
+      return
+    }
 
+    setIsVerifying(true)
     try {
-      const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-      const response = await fetch(`${API_BASE}/api/verify_face`, {
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+      const blob = dataURItoBlob(imageSrc)
+      const formData = new FormData()
+      formData.append('file', blob, 'face.jpg')
+      formData.append(
+        'known_encoding',
+        typeof faceEncoding === 'string' ? faceEncoding : JSON.stringify(faceEncoding)
+      )
+
+      const response = await fetch(`${apiBase}/api/verify_face`, {
         method: 'POST',
         body: formData,
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Verification failed')
+        const errorData = await response.json().catch(() => ({}))
+        const errorMsg =
+          typeof errorData.detail === 'string'
+            ? errorData.detail
+            : Array.isArray(errorData.detail)
+              ? errorData.detail.map((d: any) => d.msg || JSON.stringify(d)).join(', ')
+              : 'Face verification failed'
+        throw new Error(errorMsg)
       }
 
       const data = await response.json()
@@ -254,7 +291,7 @@ function ClockWidget() {
       }
     } catch (error: any) {
       playErrorSound()
-      toast.error('Verification error', { description: error.message })
+      toast.error('Verification error', { description: error.message || 'Error processing facial recognition' })
     } finally {
       setIsVerifying(false)
     }
@@ -267,9 +304,25 @@ function ClockWidget() {
       : ''
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-border/70 shadow-xs">
       <div className="bg-gradient-to-br from-sidebar to-sidebar/80 p-6">
         <div className="text-center">
+          {/* Geofence Status Indicator Pill */}
+          <div className="flex justify-center mb-3">
+            <Badge
+              className={`px-3 py-1 text-[11px] font-semibold gap-1.5 shadow-xs ${
+                isGeofenceActive
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+              }`}
+            >
+              {isGeofenceActive ? <ShieldCheck className="size-3 text-emerald-400" /> : <Globe className="size-3 text-amber-400" />}
+              {isGeofenceActive
+                ? `Geofence Enforced (${geofenceSettings?.radius || 100}m)`
+                : 'Remote / Flexible Clock-in (Geofence OFF)'}
+            </Badge>
+          </div>
+
           <div className="text-5xl font-bold tabular-nums tracking-tight text-sidebar-foreground">
             {format(time, 'HH:mm:ss')}
           </div>
@@ -328,34 +381,31 @@ function ClockWidget() {
         </div>
       </div>
       <CardContent className="p-4">
-        <div className="grid grid-cols-3 gap-3 text-center text-sm">
-          <div>
-            <p className="font-semibold">{todayAtt?.clock_in ? format(new Date(todayAtt.clock_in), 'h:mm a') : '--:--'}</p>
+        <div className="grid grid-cols-2 gap-4 text-center">
+          <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs text-muted-foreground">Clock In</p>
+            <p className="mt-1 text-lg font-semibold">
+              {todayAtt?.clock_in ? format(new Date(todayAtt.clock_in), 'h:mm a') : '--:--'}
+            </p>
           </div>
-          <div>
-            <p className="font-semibold">{todayAtt?.clock_out ? format(new Date(todayAtt.clock_out), 'h:mm a') : '--:--'}</p>
+          <div className="rounded-lg bg-muted/50 p-3">
             <p className="text-xs text-muted-foreground">Clock Out</p>
+            <p className="mt-1 text-lg font-semibold">
+              {todayAtt?.clock_out ? format(new Date(todayAtt.clock_out), 'h:mm a') : '--:--'}
+            </p>
           </div>
-          <div>
-            <p className="font-semibold">{todayAtt?.total_hours ? `${todayAtt.total_hours}h` : '0h'}</p>
-            <p className="text-xs text-muted-foreground">Total Hours</p>
-          </div>
-        </div>
-        <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-          <MapPin className="size-3" />
-          <span>Office · GPS Verified</span>
         </div>
       </CardContent>
+
       <Dialog open={showFaceVerification} onOpenChange={setShowFaceVerification}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Face ID Verification</DialogTitle>
+            <DialogTitle>Facial Identity Verification</DialogTitle>
             <DialogDescription>
-              Please verify your identity to {isIn ? 'clock out' : 'clock in'}.
+              Align your face inside the circle for AI biometric validation.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center mt-4">
+          <div className="py-2">
             <WebcamCapture onCapture={handleFaceVerify} isLoading={isVerifying} />
           </div>
         </DialogContent>
@@ -365,29 +415,109 @@ function ClockWidget() {
 }
 
 export default function AttendancePage() {
+  const { employee } = useAuthStore()
   const { can } = usePermissions()
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
-  const { data: todayAttendance, isLoading } = useAttendance(selectedDate)
-
-  const endDate = format(endOfMonth(calendarMonth), 'yyyy-MM-dd')
-  const startDate = format(startOfMonth(calendarMonth), 'yyyy-MM-dd')
-  const { data: monthAttendance } = useAttendanceRange(startDate, endDate)
-
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  
+  // Geofence settings state
+  const [geofenceSettings, setGeofenceSettings] = useState<GeofenceState | null>(null)
+  const [togglingGeofence, setTogglingGeofence] = useState(false)
 
-  const summary = {
-    present: todayAttendance?.filter(a => a.status === 'present').length ?? 0,
-    late: todayAttendance?.filter(a => a.status === 'late').length ?? 0,
-    absent: todayAttendance?.filter(a => a.status === 'absent').length ?? 0,
-    total: todayAttendance?.length ?? 0,
+  const { data: todayAttendance, isLoading } = useAttendance(selectedDate)
+  
+  const { data: monthAttendance } = useAttendanceRange(
+    format(startOfMonth(calendarMonth), 'yyyy-MM-dd'),
+    format(endOfMonth(calendarMonth), 'yyyy-MM-dd')
+  )
+
+  // Fetch geofence configuration
+  useEffect(() => {
+    const fetchGeofence = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('organizations')
+          .select('geofence_settings')
+          .eq('id', ORG_ID)
+          .maybeSingle()
+
+        if (error) throw error
+        if (data?.geofence_settings) {
+          const s = data.geofence_settings as any
+          setGeofenceSettings({
+            lat: s.lat ?? 14.5995,
+            lng: s.lng ?? 120.9842,
+            radius: s.radius ?? 100,
+            enabled: s.enabled !== false, // default true
+          })
+        } else {
+          setGeofenceSettings({
+            lat: 14.5995,
+            lng: 120.9842,
+            radius: 100,
+            enabled: true,
+          })
+        }
+      } catch (err) {
+        console.warn('Error loading geofence settings:', err)
+      }
+    }
+    fetchGeofence()
+  }, [])
+
+  // HR Manager / Admin toggle geofence enforcement
+  const handleToggleGeofence = async (newEnabled: boolean) => {
+    setTogglingGeofence(true)
+    try {
+      const current = geofenceSettings || { lat: 14.5995, lng: 120.9842, radius: 100, enabled: true }
+      const updated = { ...current, enabled: newEnabled }
+
+      const { error } = await supabase
+        .from('organizations')
+        .update({ geofence_settings: updated })
+        .eq('id', ORG_ID)
+
+      if (error) throw error
+      setGeofenceSettings(updated)
+
+      if (newEnabled) {
+        toast.success('🛡️ Geofence Enforcement Enabled', {
+          description: `Employees must be within ${updated.radius}m of the office hub to clock in.`
+        })
+      } else {
+        toast.info('🌐 Geofence Enforcement Disabled', {
+          description: 'Employees can now clock in from any remote or field location without distance blocks.'
+        })
+      }
+    } catch (err: any) {
+      toast.error('Failed to update geofence status: ' + err.message)
+    } finally {
+      setTogglingGeofence(false)
+    }
   }
 
-  const filteredAttendance = todayAttendance?.filter(a => !statusFilter || a.status === statusFilter)
+  const isGeofenceActive = geofenceSettings?.enabled !== false
+
+  const summary = useMemo(() => {
+    if (!todayAttendance) return { present: 0, late: 0, absent: 0, total: 0 }
+    return {
+      present: todayAttendance.filter(a => a.status === 'present').length,
+      late: todayAttendance.filter(a => a.status === 'late').length,
+      absent: todayAttendance.filter(a => a.status === 'absent').length,
+      total: todayAttendance.length,
+    }
+  }, [todayAttendance])
+
+  const filteredAttendance = useMemo(() => {
+    if (!todayAttendance) return []
+    if (!statusFilter) return todayAttendance
+    return todayAttendance.filter(a => a.status === statusFilter)
+  }, [todayAttendance, statusFilter])
 
   const monthlySummary = useMemo(() => {
     if (!monthAttendance) return []
-    const summaryMap = new Map<string, any>()
+    const summaryMap = new Map<string, { employee: any, present: number, late: number, absent: number, half_day: number }>()
     
     monthAttendance.forEach(record => {
       const empId = record.employee_id
@@ -400,7 +530,7 @@ export default function AttendancePage() {
           half_day: 0,
         })
       }
-      const stats = summaryMap.get(empId)
+      const stats = summaryMap.get(empId)!
       if (record.status === 'present') stats.present++
       if (record.status === 'late') stats.late++
       if (record.status === 'absent') stats.absent++
@@ -416,45 +546,73 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-6">
+      {/* Top Header & HR Geofence Quick Controller */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Attendance</h1>
-          <p className="text-sm text-muted-foreground">Track and manage employee attendance</p>
+          <h1 className="text-2xl font-bold tracking-tight">Attendance Tracking</h1>
+          <p className="text-sm text-muted-foreground">
+            Verify real-time attendance, biometric clock-ins, and GPS spatial locks
+          </p>
         </div>
-        {can.manageAttendance() && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-1.5"
-            onClick={() => {
-              if (!monthAttendance || monthAttendance.length === 0) {
-                toast.error('No records to export')
-                return
-              }
-              const exportData = monthAttendance.map(record => ({
-                Date: record.date,
-                Employee: `${record.employees?.first_name} ${record.employees?.last_name}`,
-                Status: record.status,
-                'Clock In': record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : '',
-                'Clock Out': record.clock_out ? format(new Date(record.clock_out), 'h:mm a') : '',
-                'Total Hours': record.total_hours || 0
-              }))
-              downloadCSV(exportData, `Attendance_Report_${format(calendarMonth, 'MMM_yyyy')}`)
-              toast.success('Report downloaded successfully')
-            }}
-          >
-            <Download className="size-4" />
-            Export Report
-          </Button>
-        )}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* HR Manager Geofence Enforcement Switch */}
+          {can.manageAttendance() && (
+            <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-all ${
+              isGeofenceActive 
+                ? 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/30 dark:border-emerald-900/60' 
+                : 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/60'
+            }`}>
+              <div className="flex flex-col">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground">Geofence Lock</span>
+                <span className={`text-xs font-semibold ${isGeofenceActive ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                  {isGeofenceActive ? 'Active (Strict)' : 'Bypassed (Remote)'}
+                </span>
+              </div>
+              <Switch
+                id="hr-geofence-toggle"
+                checked={isGeofenceActive}
+                onCheckedChange={handleToggleGeofence}
+                disabled={togglingGeofence}
+                title="Toggle Geofence on/off to allow or restrict remote clock-ins"
+              />
+            </div>
+          )}
+
+          {can.manageAttendance() && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-1.5"
+              onClick={() => {
+                if (!monthAttendance || monthAttendance.length === 0) {
+                  toast.error('No records to export')
+                  return
+                }
+                const exportData = monthAttendance.map(record => ({
+                  Date: record.date,
+                  Employee: `${record.employees?.first_name} ${record.employees?.last_name}`,
+                  Status: record.status,
+                  'Clock In': record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : '',
+                  'Clock Out': record.clock_out ? format(new Date(record.clock_out), 'h:mm a') : '',
+                  'Total Hours': record.total_hours || 0
+                }))
+                downloadCSV(exportData, `Attendance_Report_${format(calendarMonth, 'MMM_yyyy')}`)
+                toast.success('Report downloaded successfully')
+              }}
+            >
+              <Download className="size-4" />
+              Export Report
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Clock widget */}
-        <ClockWidget />
+        <ClockWidget geofenceSettings={geofenceSettings} />
 
         {/* Today's summary */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 border-border/70 shadow-xs">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -520,18 +678,16 @@ export default function AttendancePage() {
                             → {format(new Date(record.clock_out), 'h:mm a')}
                           </span>
                         )}
-                        {record.total_hours && (
-                          <span className="font-medium">{record.total_hours}h</span>
-                        )}
-                        {((record.location as any)?.clockIn || (record.location as any)?.clockOut) && (
+                        <Badge className={cfg?.className ?? ''}>
+                          <Icon className="mr-1 size-3" />
+                          {cfg?.label ?? record.status}
+                        </Badge>
+                        {record.location && (
                           <LocationMapDialog
                             clockInLocation={(record.location as any)?.clockIn}
                             clockOutLocation={(record.location as any)?.clockOut}
                           />
                         )}
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${cfg?.className ?? ''}`}>
-                          {cfg?.label ?? record.status}
-                        </span>
                       </div>
                     </div>
                   )
@@ -542,93 +698,152 @@ export default function AttendancePage() {
         </Card>
       </div>
 
-      {/* Monthly Calendar and Summary View */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Attendance Calendar</CardTitle>
-            <CardDescription>View monthly attendance history</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => { if (date) setSelectedDate(date) }}
-              month={calendarMonth}
-              onMonthChange={setCalendarMonth}
-              className="rounded-md border p-4"
-              modifiers={{
-                present: (date) => monthAttendance?.some(a => a.status === 'present' && isSameDay(new Date(a.date), date)) ?? false,
-                late: (date) => monthAttendance?.some(a => a.status === 'late' && isSameDay(new Date(a.date), date)) ?? false,
-                absent: (date) => monthAttendance?.some(a => a.status === 'absent' && isSameDay(new Date(a.date), date)) ?? false,
-              }}
-              modifiersClassNames={{
-                present: 'bg-emerald-100 text-emerald-900 font-bold dark:bg-emerald-900/50 dark:text-emerald-200',
-                late: 'bg-amber-100 text-amber-900 font-bold dark:bg-amber-900/50 dark:text-amber-200',
-                absent: 'bg-red-100 text-red-900 font-bold dark:bg-red-900/50 dark:text-red-200',
-              }}
-            />
-          </CardContent>
-        </Card>
+      {/* Analytics & History Tabs */}
+      <Tabs defaultValue="history" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="history">Attendance History</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly Summary</TabsTrigger>
+          {can.manageAttendance() && <TabsTrigger value="map">Live Field Map</TabsTrigger>}
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">Monthly Summary</CardTitle>
-                <CardDescription>Total days per employee for {format(calendarMonth, 'MMMM yyyy')}</CardDescription>
-              </div>
-              <Badge variant="secondary">{monthlySummary.length} employees</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
-              {monthlySummary.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  No attendance records found for this month.
-                </p>
-              ) : (
-                monthlySummary.map((stats, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="size-8 shrink-0">
-                        {stats.employee?.avatar_url && <AvatarImage src={stats.employee.avatar_url} className="object-cover" />}
-                        <AvatarFallback className="bg-primary/10 text-xs text-primary">
-                          {`${stats.employee?.first_name?.[0] ?? ''}${stats.employee?.last_name?.[0] ?? ''}`}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{stats.employee?.first_name} {stats.employee?.last_name}</p>
-                        <p className="text-xs text-muted-foreground">{stats.employee?.departments?.name || 'No Dept'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2.5 text-xs font-medium pl-2">
-                      <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle className="size-3.5" />
-                        <span>{stats.present}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                        <AlertCircle className="size-3.5" />
-                        <span>{stats.late}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                        <XCircle className="size-3.5" />
-                        <span>{stats.absent}</span>
-                      </div>
-                    </div>
+        <TabsContent value="history" className="space-y-4">
+          <Card className="border-border/70 shadow-xs">
+            <CardHeader>
+              <CardTitle className="text-base">Historical Logs</CardTitle>
+              <CardDescription>Select a date to view past attendance records</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="rounded-md border p-3 flex justify-center bg-card">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => d && setSelectedDate(d)}
+                    className="rounded-md"
+                  />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="font-semibold text-sm">
+                    Logs for {format(selectedDate, 'MMMM d, yyyy')}
+                  </h3>
+                  <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                    {filteredAttendance.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-8 text-center">
+                        No logs recorded for this date.
+                      </p>
+                    ) : (
+                      filteredAttendance.map(record => (
+                        <div key={record.id} className="flex items-center justify-between p-3 rounded-lg border border-border text-sm">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="size-8">
+                              {record.employees?.avatar_url && <AvatarImage src={record.employees.avatar_url} />}
+                              <AvatarFallback>{record.employees?.first_name?.[0]}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-xs sm:text-sm">{record.employees?.first_name} {record.employees?.last_name}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                In: {record.clock_in ? format(new Date(record.clock_in), 'hh:mm a') : 'N/A'} • Out: {record.clock_out ? format(new Date(record.clock_out), 'hh:mm a') : 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={ATT_STATUS_CONFIG[record.status]?.className || ''}>
+                              {ATT_STATUS_CONFIG[record.status]?.label || record.status}
+                            </Badge>
+                            {record.location && (
+                              <LocationMapDialog
+                                clockInLocation={(record.location as any)?.clockIn}
+                                clockOutLocation={(record.location as any)?.clockOut}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {can.isHR() && (
-        <div className="grid gap-6">
-          <DailyAttendanceMap records={filteredAttendance || []} />
-        </div>
-      )}
+        <TabsContent value="monthly" className="space-y-4">
+          <Card className="border-border/70 shadow-xs">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base">Monthly Aggregation</CardTitle>
+                  <CardDescription>Aggregated metrics for {format(calendarMonth, 'MMMM yyyy')}</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setCalendarMonth(subDays(startOfMonth(calendarMonth), 1))}>
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setCalendarMonth(new Date())}>
+                    Current
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-xs text-muted-foreground uppercase">
+                      <th className="py-2.5">Employee</th>
+                      <th className="py-2.5 text-center">Present</th>
+                      <th className="py-2.5 text-center">Late</th>
+                      <th className="py-2.5 text-center">Half Day</th>
+                      <th className="py-2.5 text-center">Absent</th>
+                      <th className="py-2.5 text-right">Total Days</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {monthlySummary.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                          No monthly records available
+                        </td>
+                      </tr>
+                    ) : (
+                      monthlySummary.map(item => (
+                        <tr key={item.employee?.id} className="hover:bg-muted/50">
+                          <td className="py-3 flex items-center gap-2 font-medium">
+                            <Avatar className="size-6">
+                              {item.employee?.avatar_url && <AvatarImage src={item.employee.avatar_url} />}
+                              <AvatarFallback className="text-[10px]">{item.employee?.first_name?.[0]}</AvatarFallback>
+                            </Avatar>
+                            {item.employee?.first_name} {item.employee?.last_name}
+                          </td>
+                          <td className="py-3 text-center text-emerald-600 font-semibold">{item.present}</td>
+                          <td className="py-3 text-center text-amber-600 font-semibold">{item.late}</td>
+                          <td className="py-3 text-center text-purple-600 font-semibold">{item.half_day}</td>
+                          <td className="py-3 text-center text-red-600 font-semibold">{item.absent}</td>
+                          <td className="py-3 text-right font-bold">{item.present + item.late + item.half_day}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {can.manageAttendance() && (
+          <TabsContent value="map" className="space-y-4">
+            <Card className="border-border/70 shadow-xs">
+              <CardHeader>
+                <CardTitle className="text-base">Field Personnel Live Map</CardTitle>
+                <CardDescription>Visual distribution of on-the-clock personnel across logistics coordinates</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DailyAttendanceMap records={todayAttendance || []} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   )
 }

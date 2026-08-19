@@ -5,6 +5,7 @@ import L from 'leaflet'
 import icon from 'leaflet/dist/images/marker-icon.png'
 import iconShadow from 'leaflet/dist/images/marker-shadow.png'
 import { supabase, ORG_ID } from '@/lib/supabase'
+import { ShieldCheck, Globe, ShieldAlert } from 'lucide-react'
 
 // Fix default marker icons
 let DefaultIcon = L.icon({
@@ -22,7 +23,7 @@ interface LiveGeofenceMapProps {
 }
 
 export function LiveGeofenceMap({ userLocation }: LiveGeofenceMapProps) {
-  const [officeSettings, setOfficeSettings] = useState<{lat: number, lng: number, radius: number} | null>(null)
+  const [officeSettings, setOfficeSettings] = useState<{ lat: number; lng: number; radius: number; enabled?: boolean } | null>(null)
 
   useEffect(() => {
     async function fetchSettings() {
@@ -31,15 +32,17 @@ export function LiveGeofenceMap({ userLocation }: LiveGeofenceMapProps) {
       let lat = import.meta.env.VITE_OFFICE_LAT ? parseFloat(import.meta.env.VITE_OFFICE_LAT) : 14.5995
       let lng = import.meta.env.VITE_OFFICE_LNG ? parseFloat(import.meta.env.VITE_OFFICE_LNG) : 120.9842
       let radius = import.meta.env.VITE_ALLOWED_RADIUS_METERS ? parseInt(import.meta.env.VITE_ALLOWED_RADIUS_METERS) : 100
+      let enabled = true
 
       if (data?.geofence_settings) {
-        const settings = data.geofence_settings as { lat: number; lng: number; radius: number }
-        lat = settings.lat
-        lng = settings.lng
-        radius = settings.radius
+        const settings = data.geofence_settings as { lat: number; lng: number; radius: number; enabled?: boolean }
+        lat = settings.lat ?? lat
+        lng = settings.lng ?? lng
+        radius = settings.radius ?? radius
+        enabled = settings.enabled !== false
       }
       
-      setOfficeSettings({ lat, lng, radius })
+      setOfficeSettings({ lat, lng, radius, enabled })
     }
     fetchSettings()
   }, [])
@@ -51,6 +54,8 @@ export function LiveGeofenceMap({ userLocation }: LiveGeofenceMapProps) {
       </div>
     )
   }
+
+  const isEnabled = officeSettings.enabled !== false
 
   // Calculate if user is inside
   const R = 6371e3
@@ -79,10 +84,11 @@ export function LiveGeofenceMap({ userLocation }: LiveGeofenceMapProps) {
         <Circle 
           center={[officeSettings.lat, officeSettings.lng]}
           pathOptions={{ 
-            fillColor: isInside ? '#10b981' : '#ef4444', 
-            fillOpacity: 0.2,
-            color: isInside ? '#10b981' : '#ef4444',
-            weight: 2
+            fillColor: !isEnabled ? '#f59e0b' : isInside ? '#10b981' : '#ef4444', 
+            fillOpacity: !isEnabled ? 0.08 : 0.2,
+            color: !isEnabled ? '#f59e0b' : isInside ? '#10b981' : '#ef4444',
+            weight: 2,
+            dashArray: !isEnabled ? '6, 6' : undefined
           }}
           radius={officeSettings.radius}
         />
@@ -93,8 +99,13 @@ export function LiveGeofenceMap({ userLocation }: LiveGeofenceMapProps) {
             <div className="text-center font-sans">
               <p className="font-bold text-sm">Your Location</p>
               <p className="text-xs text-muted-foreground mt-1">
-                {Math.round(distance)}m from office
+                {Math.round(distance)}m from office hub
               </p>
+              {!isEnabled && (
+                <p className="text-[11px] text-amber-600 font-semibold mt-1">
+                  🌐 Geofence OFF: Clock-in allowed anywhere
+                </p>
+              )}
             </div>
           </Popup>
         </Marker>
@@ -102,9 +113,16 @@ export function LiveGeofenceMap({ userLocation }: LiveGeofenceMapProps) {
       
       {/* Status Overlay */}
       <div className="absolute top-2 right-2 z-[400]">
-        <span className={`px-2.5 py-1 rounded-full text-xs font-bold shadow-md ${isInside ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
-          {isInside ? 'Inside Zone' : 'Outside Zone'}
-        </span>
+        {!isEnabled ? (
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold shadow-md bg-amber-500 text-white flex items-center gap-1">
+            <Globe className="size-3" /> Geofence OFF (Remote Allowed)
+          </span>
+        ) : (
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold shadow-md flex items-center gap-1 ${isInside ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
+            {isInside ? <ShieldCheck className="size-3" /> : <ShieldAlert className="size-3" />}
+            {isInside ? 'Inside Zone' : 'Outside Zone'}
+          </span>
+        )}
       </div>
     </div>
   )
