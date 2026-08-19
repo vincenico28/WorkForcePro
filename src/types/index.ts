@@ -33,29 +33,41 @@ export interface Department {
 
 export type EmployeeRole = 'super_admin' | 'admin' | 'hr_manager' | 'team_supervisor' | 'employee'
 export type EmployeeStatus = 'active' | 'inactive' | 'on_leave' | 'terminated'
-export type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern'
+export type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern' | 'probationary'
 
 export interface Employee {
   id: string
   user_id?: string
   org_id: string
   department_id?: string | null
-  employee_id?: string
+  employee_id?: string | null
   first_name: string
   last_name: string
   email: string
-  phone?: string
-  avatar_url?: string
+  phone?: string | null
+  avatar_url?: string | null
+  face_encoding?: any
   role: EmployeeRole
-  position?: string
+  position?: string | null
   employment_type: EmploymentType
-  hire_date?: string
-  birth_date?: string
-  address?: string
-  city?: string
-  country?: string
-  emergency_contact?: Record<string, unknown>
-  salary_info?: Record<string, unknown>
+  hire_date?: string | null
+  birth_date?: string | null
+  address?: string | null
+  city?: string | null
+  country?: string | null
+  emergency_contact?: {
+    name?: string
+    relationship?: string
+    phone?: string
+  } | Record<string, unknown> | null
+  salary_info?: {
+    base_salary?: number
+    rate_type?: 'monthly' | 'hourly' | 'daily'
+    sss_no?: string
+    philhealth_no?: string
+    pagibig_no?: string
+    tin_no?: string
+  } | Record<string, unknown> | null
   status: EmployeeStatus
   manager_id?: string
   skills?: string[]

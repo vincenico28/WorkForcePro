@@ -1,12 +1,18 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Mail, Phone, Calendar, Briefcase, Clock, Edit, Building2, Camera, IdCard, Printer, Download } from 'lucide-react'
+import {
+  ArrowLeft, Mail, Phone, Calendar, Briefcase, Clock, Edit,
+  Building2, Camera, IdCard, Printer, Download, ShieldCheck,
+  ShieldAlert, DollarSign, HeartHandshake, FileText, Copy,
+  CheckCircle2, AlertTriangle, Sparkles, UserCheck
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { useEmployee, useUpdateEmployee } from '@/hooks/use-employees'
 import { useEmployeeAttendance } from '@/hooks/use-attendance'
 import { useDepartments } from '@/hooks/use-misc'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { supabase } from '@/lib/supabase'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,7 +20,7 @@ import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -22,12 +28,21 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FaceRegistration } from '@/components/face-recognition/FaceRegistration'
 import { toast } from 'sonner'
+import type { EmployeeRole, EmploymentType } from '@/types'
 
-const STATUS_CONFIG: Record<string, string> = {
-  active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400',
-  on_leave: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400',
-  inactive: 'bg-gray-100 text-gray-600',
-  terminated: 'bg-red-100 text-red-700',
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  active: { label: 'Active', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' },
+  on_leave: { label: 'On Leave', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400' },
+  inactive: { label: 'Inactive', className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' },
+  terminated: { label: 'Terminated', className: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400' },
+}
+
+const EMPLOYMENT_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
+  full_time: { label: 'Full Time (Regular)', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300' },
+  probationary: { label: 'Probationary (6 mos)', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300' },
+  contract: { label: 'Contractual / Project', className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300' },
+  part_time: { label: 'Part Time', className: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300' },
+  intern: { label: 'Intern / OJT', className: 'bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/30 dark:text-pink-300' },
 }
 
 const ATT_STATUS_CONFIG: Record<string, string> = {
@@ -38,18 +53,44 @@ const ATT_STATUS_CONFIG: Record<string, string> = {
   half_day: 'bg-purple-100 text-purple-700',
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  hr_manager: 'HR Manager',
+  team_supervisor: 'Supervisor',
+  employee: 'Employee',
+}
+
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: employee, isLoading } = useEmployee(id!)
+  const { data: employee, isLoading, refetch } = useEmployee(id!)
   const { data: attendance } = useEmployeeAttendance(id!, 14)
   const { data: departments } = useDepartments()
   const { mutateAsync: updateEmployee, isPending: isSaving } = useUpdateEmployee()
 
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '',
-    position: '', department_id: '', role: 'employee', employment_type: 'full_time',
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    position: '',
+    department_id: '',
+    role: 'employee' as EmployeeRole,
+    employment_type: 'full_time' as EmploymentType,
+    hire_date: '',
+    base_salary: '',
+    sss_no: '',
+    philhealth_no: '',
+    pagibig_no: '',
+    tin_no: '',
+    emergency_name: '',
+    emergency_relation: '',
+    emergency_phone: '',
+    address: '',
+    city: '',
   })
+
   const [idCardOpen, setIdCardOpen] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
@@ -78,7 +119,8 @@ export default function EmployeeDetailPage() {
         avatar_url: data.publicUrl
       })
 
-      toast.success('Avatar updated')
+      toast.success('Avatar photo updated successfully!')
+      refetch()
     } catch (err: any) {
       toast.error('Error uploading avatar', { description: err.message })
     } finally {
@@ -88,6 +130,9 @@ export default function EmployeeDetailPage() {
 
   const openEdit = () => {
     if (!employee) return
+    const sal = (employee.salary_info as any) || {}
+    const emg = (employee.emergency_contact as any) || {}
+
     setEditForm({
       first_name: employee.first_name,
       last_name: employee.last_name ?? '',
@@ -97,6 +142,17 @@ export default function EmployeeDetailPage() {
       department_id: employee.department_id ?? '',
       role: employee.role,
       employment_type: employee.employment_type ?? 'full_time',
+      hire_date: employee.hire_date || (employee.created_at ? employee.created_at.split('T')[0] : ''),
+      base_salary: sal.base_salary ? String(sal.base_salary) : '',
+      sss_no: sal.sss_no || '',
+      philhealth_no: sal.philhealth_no || '',
+      pagibig_no: sal.pagibig_no || '',
+      tin_no: sal.tin_no || '',
+      emergency_name: emg.name || '',
+      emergency_relation: emg.relationship || '',
+      emergency_phone: emg.phone || '',
+      address: employee.address || '',
+      city: employee.city || '',
     })
     setEditOpen(true)
   }
@@ -105,22 +161,54 @@ export default function EmployeeDetailPage() {
     e.preventDefault()
     if (!employee) return
     try {
-      const { department_id, ...updatesToApply } = editForm
+      const salaryInfo = {
+        ...(employee.salary_info as any || {}),
+        base_salary: editForm.base_salary ? parseFloat(editForm.base_salary) : 0,
+        rate_type: 'monthly',
+        sss_no: editForm.sss_no || undefined,
+        philhealth_no: editForm.philhealth_no || undefined,
+        pagibig_no: editForm.pagibig_no || undefined,
+        tin_no: editForm.tin_no || undefined,
+      }
+
+      const emergencyContact = {
+        ...(employee.emergency_contact as any || {}),
+        name: editForm.emergency_name || undefined,
+        relationship: editForm.emergency_relation || undefined,
+        phone: editForm.emergency_phone || undefined,
+      }
+
       await updateEmployee({
         id: employee.id,
-        ...updatesToApply,
-        department_id: department_id || null,
-        role: editForm.role as import('@/types').EmployeeRole,
-        employment_type: editForm.employment_type as import('@/types').EmploymentType,
+        first_name: editForm.first_name,
+        last_name: editForm.last_name,
+        phone: editForm.phone || null,
+        position: editForm.position || null,
+        department_id: editForm.department_id || null,
+        role: editForm.role,
+        employment_type: editForm.employment_type,
+        hire_date: editForm.hire_date || null,
+        address: editForm.address || null,
+        city: editForm.city || null,
+        salary_info: salaryInfo,
+        emergency_contact: emergencyContact,
       })
-      toast.success('Profile updated')
+
+      toast.success('201 Record updated successfully!')
       setEditOpen(false)
+      refetch()
     } catch (err: any) {
-      toast.error('Failed to update profile', { description: err.message })
+      toast.error('Failed to update 201 profile', { description: err.message })
     }
   }
 
-  const upd = (k: string, v: string) => setEditForm(p => ({ ...p, [k]: v }))
+  const upd = (k: keyof typeof editForm, v: string) => setEditForm(p => ({ ...p, [k]: v }))
+
+  const copyToClipboard = (text: string, label: string) => {
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    toast.success(`Copied ${label} to clipboard!`)
+  }
 
   if (isLoading) {
     return (
@@ -137,11 +225,14 @@ export default function EmployeeDetailPage() {
   if (!employee) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <p className="text-muted-foreground">Employee not found</p>
-        <Link to="/app/employees"><Button variant="link">Back to employees</Button></Link>
+        <p className="text-muted-foreground">Employee record not found</p>
+        <Link to="/app/employees"><Button variant="link">Back to employees list</Button></Link>
       </div>
     )
   }
+
+  const sal = (employee.salary_info as any) || {}
+  const emg = (employee.emergency_contact as any) || {}
 
   const recentAtt = attendance?.slice(0, 10) ?? []
   const presentDays = attendance?.filter(a => a.status === 'present' || a.status === 'late').length ?? 0
@@ -152,234 +243,385 @@ export default function EmployeeDetailPage() {
     ? (recordsWithHours.reduce((s, a) => s + (a.total_hours ?? 0), 0) / recordsWithHours.length).toFixed(1)
     : '0'
 
+  const typeConfig = EMPLOYMENT_TYPE_CONFIG[employee.employment_type] || EMPLOYMENT_TYPE_CONFIG.full_time
+  const statusCfg = STATUS_CONFIG[employee.status] || STATUS_CONFIG.active
+
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2">
+      {/* Breadcrumb & Navigation */}
+      <div className="flex items-center justify-between">
         <Link to="/app/employees">
           <Button variant="ghost" size="sm" className="-ml-2 gap-1.5 text-muted-foreground">
             <ArrowLeft className="size-4" />
-            Employees
+            Back to Employee Directory
           </Button>
         </Link>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setIdCardOpen(true)}>
+            <IdCard className="size-4" />
+            Print ID Card
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={openEdit}>
+            <Edit className="size-4" />
+            Edit 201 File
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Profile Card */}
+        {/* Left Column: Profile Card & Biometrics Snapshot */}
         <div className="space-y-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex flex-col items-center text-center">
-                <Avatar className="size-20 rounded-2xl ring-4 ring-background shadow-xl">
-                  {employee.avatar_url && <AvatarImage src={employee.avatar_url} alt={employee.first_name} className="object-cover" />}
-                  <AvatarFallback className="rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/20 text-xl font-bold text-primary">
-                    {`${employee.first_name[0]}${employee.last_name[0] ?? ''}`}
-                  </AvatarFallback>
-                </Avatar>
+          <Card className="border-border/70 shadow-xs overflow-hidden">
+            <div className="h-20 bg-gradient-to-r from-primary/80 to-primary" />
+            <CardContent className="p-6 pt-0 relative">
+              <div className="flex flex-col items-center text-center -mt-10">
+                <div className="relative group">
+                  <Avatar className="size-20 rounded-2xl ring-4 ring-background shadow-xl">
+                    {employee.avatar_url && <AvatarImage src={employee.avatar_url} alt={employee.first_name} className="object-cover" />}
+                    <AvatarFallback className="rounded-2xl bg-primary/10 text-xl font-bold text-primary">
+                      {`${employee.first_name[0]}${employee.last_name[0] ?? ''}`}
+                    </AvatarFallback>
+                  </Avatar>
+                  <label className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-2xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Camera className="size-5 text-white" />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                  </label>
+                </div>
+
                 <h2 className="mt-3 text-lg font-bold">{employee.first_name} {employee.last_name}</h2>
-                <p className="text-sm text-muted-foreground">{employee.position ?? 'No position'}</p>
-                <p className="text-xs text-muted-foreground/70">{employee.departments?.name}</p>
-                <div className="mt-3 flex items-center gap-2">
-                  <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_CONFIG[employee.status]}`}>
-                    {employee.status.replace('_', ' ')}
+                <p className="text-sm text-muted-foreground font-medium">{employee.position ?? 'Logistics Staff'}</p>
+                <p className="text-xs text-primary font-semibold">{employee.departments?.name || 'Operations'}</p>
+                
+                <div className="mt-3 flex items-center gap-2 flex-wrap justify-center">
+                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusCfg.className}`}>
+                    {statusCfg.label}
                   </span>
-                  <span className="text-xs text-muted-foreground">{employee.employee_id}</span>
+                  <Badge variant="outline" className={`text-xs font-semibold ${typeConfig.className}`}>
+                    {typeConfig.label}
+                  </Badge>
                 </div>
               </div>
 
               <Separator className="my-4" />
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-2.5 text-sm">
-                  <Mail className="size-4 shrink-0 text-muted-foreground" />
-                  <a href={`mailto:${employee.email}`} className="truncate text-primary hover:underline">{employee.email}</a>
+              <div className="space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Mail className="size-3.5" /> Email
+                  </span>
+                  <a href={`mailto:${employee.email}`} className="font-medium text-foreground hover:text-primary truncate max-w-[160px]">
+                    {employee.email}
+                  </a>
                 </div>
                 {employee.phone && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <Phone className="size-4 shrink-0 text-muted-foreground" />
-                    <span>{employee.phone}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <Phone className="size-3.5" /> Phone
+                    </span>
+                    <a href={`tel:${employee.phone}`} className="font-medium text-foreground hover:text-primary">
+                      {employee.phone}
+                    </a>
                   </div>
                 )}
-                {employee.departments?.name && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <Building2 className="size-4 shrink-0 text-muted-foreground" />
-                    <span>{employee.departments.name}</span>
-                  </div>
-                )}
-                {employee.hire_date && (
-                  <div className="flex items-center gap-2.5 text-sm">
-                    <Calendar className="size-4 shrink-0 text-muted-foreground" />
-                    <span>Joined {format(new Date(employee.hire_date), 'MMM d, yyyy')}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2.5 text-sm">
-                  <Briefcase className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="capitalize">{employee.employment_type.replace('_', ' ')}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="size-3.5" /> Date Hired
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {employee.hire_date ? format(new Date(employee.hire_date), 'MMM d, yyyy') : 'N/A'}
+                  </span>
                 </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <Button variant="outline" className="w-full gap-2" onClick={openEdit}>
-                  <Edit className="size-4" />
-                  Edit Profile
-                </Button>
-                <Button variant="default" className="w-full gap-2" onClick={() => setIdCardOpen(true)}>
-                  <IdCard className="size-4" />
-                  ID Card
-                </Button>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="size-3.5" /> Biometrics
+                  </span>
+                  {employee.face_encoding ? (
+                    <span className="font-semibold text-emerald-600 flex items-center gap-1">
+                      <ShieldCheck className="size-3" /> Enrolled
+                    </span>
+                  ) : (
+                    <span className="font-semibold text-rose-500 flex items-center gap-1">
+                      <ShieldAlert className="size-3" /> Missing
+                    </span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Attendance summary */}
-          <Card>
-            <CardHeader className="pb-3">
+          {/* Attendance KPI Widget */}
+          <Card className="border-border/70 shadow-xs">
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Attendance (Last 14 days)</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Rate', value: `${attRate}%`, color: 'text-primary' },
-                { label: 'Present', value: presentDays, color: 'text-emerald-600' },
-                { label: 'Avg Hrs', value: avgHours, color: 'text-muted-foreground' },
+                { label: 'Attendance Rate', value: `${attRate}%`, color: 'text-primary' },
+                { label: 'Days Present', value: presentDays, color: 'text-emerald-600' },
+                { label: 'Avg Shift Hours', value: `${avgHours}h`, color: 'text-muted-foreground' },
               ].map((s) => (
-                <div key={s.label} className="text-center">
-                  <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                <div key={s.label} className="text-center p-2 rounded-lg bg-muted/40">
+                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
                 </div>
               ))}
             </CardContent>
           </Card>
         </div>
 
-        {/* Main content */}
+        {/* Right Column: 201 Tabs & Operational Sections */}
         <div className="space-y-4 lg:col-span-2">
-          {/* Role & Info */}
-          <Card>
-            <CardHeader><CardTitle className="text-base">Employment Details</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4">
-              {[
-                { label: 'Role', value: employee.role.replace('_', ' ') },
-                { label: 'Employee ID', value: employee.employee_id ?? '-' },
-                { label: 'Employment Type', value: employee.employment_type.replace('_', ' ') },
-                { label: 'Status', value: employee.status.replace('_', ' ') },
-                { label: 'Hire Date', value: employee.hire_date ? format(new Date(employee.hire_date), 'MMM d, yyyy') : '-' },
-                { label: 'Department', value: employee.departments?.name ?? '-' },
-              ].map((item) => (
-                <div key={item.label}>
-                  <p className="text-xs text-muted-foreground">{item.label}</p>
-                  <p className="mt-0.5 text-sm font-medium capitalize">{item.value}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview" className="gap-1 text-xs">
+                <FileText className="size-3.5" /> 201 Masterfile
+              </TabsTrigger>
+              <TabsTrigger value="attendance" className="gap-1 text-xs">
+                <Clock className="size-3.5" /> Attendance Logs
+              </TabsTrigger>
+              <TabsTrigger value="face" className="gap-1 text-xs">
+                <ShieldCheck className="size-3.5" /> Biometrics & Security
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Recent Attendance */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Recent Attendance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentAtt.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted-foreground">No attendance records found</p>
-              ) : (
-                <div className="space-y-2">
-                  {recentAtt.map((record) => (
-                    <div key={record.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-sm">
-                      <div className="flex items-center gap-3">
-                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ATT_STATUS_CONFIG[record.status] ?? ''}`}>
-                          {record.status}
-                        </span>
-                        <span className="font-medium">{format(new Date(record.date), 'EEE, MMM d')}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        {record.clock_in && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="size-3" />
-                            {format(new Date(record.clock_in), 'h:mm a')}
-                          </span>
-                        )}
-                        {record.clock_out && (
-                          <span>— {format(new Date(record.clock_out), 'h:mm a')}</span>
-                        )}
-                        {record.total_hours && (
-                          <span className="font-medium text-foreground">{record.total_hours}h</span>
-                        )}
-                      </div>
+            {/* TAB 1: 201 MASTERFILE & STATUTORY */}
+            <TabsContent value="overview" className="space-y-4 pt-3">
+              {/* Statutory & Compensation Cards */}
+              <Card className="border-border/70 shadow-xs">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+                        <DollarSign className="size-4 text-emerald-600" /> Philippine Statutory & Salary Record
+                      </CardTitle>
+                      <CardDescription className="text-xs">DOLE compliant tax and social security identifiers</CardDescription>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg border bg-muted/30">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Basic Monthly Salary</p>
+                    <p className="text-sm font-bold text-emerald-600 mt-0.5">
+                      {sal.base_salary ? `₱${parseFloat(sal.base_salary).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : '₱0.00'}
+                    </p>
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-muted/30 relative group">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">SSS Number</p>
+                    <p className="text-xs font-mono font-bold mt-0.5 text-foreground">{sal.sss_no || 'Unassigned'}</p>
+                    {sal.sss_no && (
+                      <button
+                        onClick={() => copyToClipboard(sal.sss_no, 'SSS Number')}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                        title="Copy SSS"
+                      >
+                        <Copy className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-muted/30 relative group">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">PhilHealth PIN</p>
+                    <p className="text-xs font-mono font-bold mt-0.5 text-foreground">{sal.philhealth_no || 'Unassigned'}</p>
+                    {sal.philhealth_no && (
+                      <button
+                        onClick={() => copyToClipboard(sal.philhealth_no, 'PhilHealth PIN')}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                        title="Copy PhilHealth"
+                      >
+                        <Copy className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-muted/30 relative group">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Pag-IBIG / HDMF MID</p>
+                    <p className="text-xs font-mono font-bold mt-0.5 text-foreground">{sal.pagibig_no || 'Unassigned'}</p>
+                    {sal.pagibig_no && (
+                      <button
+                        onClick={() => copyToClipboard(sal.pagibig_no, 'Pag-IBIG MID')}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                        title="Copy Pag-IBIG"
+                      >
+                        <Copy className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-muted/30 relative group">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">TIN (Tax ID)</p>
+                    <p className="text-xs font-mono font-bold mt-0.5 text-foreground">{sal.tin_no || 'Unassigned'}</p>
+                    {sal.tin_no && (
+                      <button
+                        onClick={() => copyToClipboard(sal.tin_no, 'TIN')}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+                        title="Copy TIN"
+                      >
+                        <Copy className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-muted/30">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Employee System ID</p>
+                    <p className="text-xs font-mono font-bold mt-0.5 text-primary">
+                      {employee.employee_id || employee.id.split('-')[0].toUpperCase()}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Emergency Contact & 201 Residence Details */}
+              <Card className="border-border/70 shadow-xs">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-bold flex items-center gap-1.5">
+                    <HeartHandshake className="size-4 text-rose-500" /> Emergency Contacts & Residential Record
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-lg border bg-muted/20 space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Emergency Contact Person</p>
+                    <p className="text-sm font-semibold text-foreground">{emg.name || 'Not provided'}</p>
+                    <p className="text-muted-foreground">{emg.relationship ? `Relationship: ${emg.relationship}` : ''}</p>
+                    {emg.phone && (
+                      <p className="font-mono text-primary font-bold">{emg.phone}</p>
+                    )}
+                  </div>
+
+                  <div className="p-3 rounded-lg border bg-muted/20 space-y-1">
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground">Permanent Residential Address</p>
+                    <p className="text-sm font-semibold text-foreground">{employee.address || 'Address on file not updated'}</p>
+                    <p className="text-muted-foreground">{employee.city || ''}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* TAB 2: RECENT ATTENDANCE LOGS */}
+            <TabsContent value="attendance" className="space-y-4 pt-3">
+              <Card className="border-border/70 shadow-xs">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-bold">Biometric Timecard History</CardTitle>
+                  <CardDescription className="text-xs">Clock-in and clock-out logs recorded for this employee</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {recentAtt.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">No attendance records logged yet</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {recentAtt.map((record) => (
+                        <div key={record.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 text-xs">
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 font-medium ${ATT_STATUS_CONFIG[record.status] ?? ''}`}>
+                              {record.status}
+                            </span>
+                            <span className="font-semibold">{format(new Date(record.date), 'EEE, MMM d, yyyy')}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-muted-foreground">
+                            {record.clock_in && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="size-3 text-emerald-600" />
+                                {format(new Date(record.clock_in), 'h:mm a')}
+                              </span>
+                            )}
+                            {record.clock_out && (
+                              <span>→ {format(new Date(record.clock_out), 'h:mm a')}</span>
+                            )}
+                            {record.total_hours && (
+                              <span className="font-bold text-foreground">{record.total_hours}h</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* TAB 3: FACIAL ID & SECURITY CREDENTIALS */}
+            <TabsContent value="face" className="space-y-4 pt-3">
+              <Card className="border-border/70 shadow-xs">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <ShieldCheck className="size-4 text-primary" /> Desk-side Facial Recognition Enrollment
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Enroll or re-calibrate the employee's 128-dimensional facial embedding vector for kiosk & mobile clock-ins.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-w-md mx-auto py-2">
+                    <FaceRegistration
+                      targetEmployee={employee}
+                      onSuccess={() => {
+                        toast.success('Biometric profile refreshed!')
+                        refetch()
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
-      {/* Edit Profile Dialog */}
+      {/* Edit 201 Profile Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-            <DialogDescription className="sr-only">
-              Edit the employee's profile details and Face ID.
+            <DialogTitle>Edit Employee 201 File</DialogTitle>
+            <DialogDescription>
+              Update employee contract, statutory numbers, and emergency contact information.
             </DialogDescription>
           </DialogHeader>
           
-          <Tabs defaultValue="profile" className="mt-2">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="profile">Profile Details</TabsTrigger>
-              <TabsTrigger value="face">Face ID</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="profile">
-              <div className="mt-4 flex flex-col items-center justify-center space-y-3 pb-4">
-                <div className="relative group">
-                  <Avatar className="size-24 rounded-2xl ring-2 ring-primary/20">
-                    {employee.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
-                    <AvatarFallback className="rounded-2xl text-2xl font-bold bg-primary/10 text-primary">
-                      {`${employee.first_name[0]}${employee.last_name[0] ?? ''}`}
-                    </AvatarFallback>
-                  </Avatar>
-                  <label className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-2xl bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
-                    <Camera className="size-6 text-white" />
-                    <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
-                  </label>
-                  {uploadingAvatar && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 backdrop-blur-sm">
-                      <span className="text-xs font-medium text-white animate-pulse">Uploading...</span>
-                    </div>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">Click to upload photo</p>
-              </div>
+          <form onSubmit={handleSave} className="space-y-4">
+            <Tabs defaultValue="basic" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="basic" className="gap-1 text-xs">
+                  <Briefcase className="size-3.5" /> Basic & Job
+                </TabsTrigger>
+                <TabsTrigger value="statutory" className="gap-1 text-xs">
+                  <DollarSign className="size-3.5" /> Statutory & Salary
+                </TabsTrigger>
+                <TabsTrigger value="emergency" className="gap-1 text-xs">
+                  <HeartHandshake className="size-3.5" /> 201 & Emergency
+                </TabsTrigger>
+              </TabsList>
 
-              <form onSubmit={handleSave} className="mt-2 space-y-4">
+              {/* Basic Tab */}
+              <TabsContent value="basic" className="space-y-3 pt-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>First Name *</Label>
+                  <div className="space-y-1">
+                    <Label className="text-xs">First Name *</Label>
                     <Input value={editForm.first_name} onChange={e => upd('first_name', e.target.value)} required />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Last Name</Label>
-                    <Input value={editForm.last_name} onChange={e => upd('last_name', e.target.value)} />
+                  <div className="space-y-1">
+                    <Label className="text-xs">Last Name *</Label>
+                    <Input value={editForm.last_name} onChange={e => upd('last_name', e.target.value)} required />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Email *</Label>
-                  <Input type="email" value={editForm.email} onChange={e => upd('email', e.target.value)} required />
-                </div>
+
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Phone</Label>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Email</Label>
+                    <Input value={editForm.email} disabled title="Email cannot be changed after creation" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Phone</Label>
                     <Input value={editForm.phone} onChange={e => upd('phone', e.target.value)} />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Position</Label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Job Position</Label>
                     <Input value={editForm.position} onChange={e => upd('position', e.target.value)} />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Department</Label>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Department</Label>
                     <Select value={editForm.department_id} onValueChange={v => upd('department_id', v)}>
                       <SelectTrigger><SelectValue placeholder="Select dept." /></SelectTrigger>
                       <SelectContent>
@@ -389,106 +631,174 @@ export default function EmployeeDetailPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Role</Label>
-                    <Select value={editForm.role} onValueChange={v => upd('role', v)}>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Role</Label>
+                    <Select value={editForm.role} onValueChange={v => upd('role', v as EmployeeRole)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="super_admin">Super Admin</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="hr_manager">HR Manager</SelectItem>
-                        <SelectItem value="team_supervisor">Supervisor</SelectItem>
-                        <SelectItem value="employee">Employee</SelectItem>
+                        {Object.entries(ROLE_LABELS).map(([v, l]) => (
+                          <SelectItem key={v} value={v}>{l}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Employment Type</Label>
+                    <Select value={editForm.employment_type} onValueChange={v => upd('employment_type', v as EmploymentType)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full_time">Full Time (Regular)</SelectItem>
+                        <SelectItem value="probationary">Probationary (6 mos)</SelectItem>
+                        <SelectItem value="contract">Contractual</SelectItem>
+                        <SelectItem value="part_time">Part Time</SelectItem>
+                        <SelectItem value="intern">Intern / OJT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Hire Date</Label>
+                    <Input type="date" value={editForm.hire_date} onChange={e => upd('hire_date', e.target.value)} />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Employment Type</Label>
-                  <Select value={editForm.employment_type} onValueChange={v => upd('employment_type', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="full_time">Full Time</SelectItem>
-                      <SelectItem value="part_time">Part Time</SelectItem>
-                      <SelectItem value="contract">Contract</SelectItem>
-                      <SelectItem value="intern">Intern</SelectItem>
-                    </SelectContent>
-                  </Select>
+              </TabsContent>
+
+              {/* Statutory Tab */}
+              <TabsContent value="statutory" className="space-y-3 pt-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Basic Monthly Rate (PHP ₱)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editForm.base_salary}
+                    onChange={e => upd('base_salary', e.target.value)}
+                    placeholder="e.g. 25000.00"
+                  />
                 </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-                  <Button type="submit" disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                  </Button>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">SSS Number</Label>
+                    <Input value={editForm.sss_no} onChange={e => upd('sss_no', e.target.value)} placeholder="XX-XXXXXXX-X" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">PhilHealth PIN</Label>
+                    <Input value={editForm.philhealth_no} onChange={e => upd('philhealth_no', e.target.value)} placeholder="XX-XXXXXXXXX-X" />
+                  </div>
                 </div>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="face">
-              <div className="pt-4">
-                <FaceRegistration targetEmployee={employee} />
-              </div>
-            </TabsContent>
-          </Tabs>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Pag-IBIG / HDMF MID</Label>
+                    <Input value={editForm.pagibig_no} onChange={e => upd('pagibig_no', e.target.value)} placeholder="XXXX-XXXX-XXXX" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">TIN (Tax ID Number)</Label>
+                    <Input value={editForm.tin_no} onChange={e => upd('tin_no', e.target.value)} placeholder="XXX-XXX-XXX-XXX" />
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Emergency Tab */}
+              <TabsContent value="emergency" className="space-y-3 pt-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Residential Address</Label>
+                  <Input value={editForm.address} onChange={e => upd('address', e.target.value)} placeholder="Unit #, Street, Barangay" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">City / Municipality</Label>
+                  <Input value={editForm.city} onChange={e => upd('city', e.target.value)} placeholder="Pasay City, Metro Manila" />
+                </div>
+
+                <div className="border-t pt-3 mt-3">
+                  <p className="text-xs font-semibold mb-2 text-foreground">Emergency Contact Person</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Contact Name</Label>
+                      <Input value={editForm.emergency_name} onChange={e => upd('emergency_name', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Relationship</Label>
+                      <Input value={editForm.emergency_relation} onChange={e => upd('emergency_relation', e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Phone</Label>
+                      <Input value={editForm.emergency_phone} onChange={e => upd('emergency_phone', e.target.value)} />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter className="pt-3">
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
+
       {/* ID Card Generator Dialog */}
       <Dialog open={idCardOpen} onOpenChange={setIdCardOpen}>
-        <DialogContent className="max-w-md bg-background/95 backdrop-blur border-none shadow-2xl">
-          <DialogHeader>
-            <DialogTitle>Employee ID Card</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center py-6">
-            {/* The Badge Container */}
-            <div className="relative w-72 h-[420px] rounded-[1.5rem] bg-gradient-to-b from-primary to-primary/80 p-1 shadow-xl overflow-hidden print:shadow-none print:w-3.375in print:h-2.125in">
-              <div className="absolute top-0 right-0 p-4 opacity-20">
-                <Building2 className="size-32" />
+        <DialogContent className="max-w-md bg-transparent border-none shadow-none text-black sm:rounded-xl">
+          <div className="flex flex-col items-center">
+            {/* The Badge Container (CR80 Portrait Standard) */}
+            <div className="print-area w-[2.125in] h-[3.375in] bg-white rounded-xl shadow-2xl overflow-hidden relative flex flex-col mx-auto shrink-0 transform scale-[1.5] sm:scale-[1.8] transform-origin-top">
+              {/* Header / Brand Banner */}
+              <div className="bg-primary h-16 w-full flex items-center justify-center pt-2">
+                <h2 className="text-white font-black text-xs tracking-widest uppercase">PRIORITY HANDLING LOGISTICS</h2>
               </div>
-              <div className="relative h-full w-full rounded-[1.3rem] bg-card p-6 flex flex-col items-center border border-primary/20">
-                <div className="w-full flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="font-bold tracking-tight text-primary">Acme Corp</h3>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">{employee.departments?.name ?? 'Headquarters'}</p>
-                  </div>
+              
+              {/* Photo Avatar */}
+              <div className="absolute top-10 left-1/2 -translate-x-1/2">
+                <div className="w-16 h-16 bg-gray-100 rounded-full border-4 border-white flex items-center justify-center overflow-hidden shadow-sm">
+                  {employee.avatar_url ? (
+                    <img src={employee.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-gray-400 font-bold text-2xl">
+                      {`${employee.first_name[0]}${employee.last_name?.[0] ?? ''}`}
+                    </span>
+                  )}
                 </div>
+              </div>
 
-                <Avatar className="size-32 rounded-full border-4 border-background shadow-lg mb-4 ring-2 ring-primary/20">
-                  {employee.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
-                  <AvatarFallback className="text-3xl font-bold bg-primary/10 text-primary">
-                    {`${employee.first_name[0]}${employee.last_name[0] ?? ''}`}
-                  </AvatarFallback>
-                </Avatar>
-
-                <h2 className="text-xl font-bold text-center leading-tight">
+              {/* Body */}
+              <div className="pt-14 px-4 text-center flex-1 flex flex-col">
+                <h3 className="font-bold text-gray-900 text-[13px] uppercase tracking-wide leading-tight mt-1">
                   {employee.first_name} {employee.last_name}
-                </h2>
-                <p className="text-sm font-medium text-primary mt-1 text-center">
-                  {employee.position ?? employee.role.replace('_', ' ')}
+                </h3>
+                <p className="text-[10px] text-primary font-semibold mt-1 leading-tight">
+                  {employee.position || 'Employee'}
+                </p>
+                <p className="text-[8px] text-gray-500 font-medium uppercase mt-0.5">
+                  {employee.departments?.name || 'Logistics Operations'}
                 </p>
 
-                <div className="mt-auto w-full pt-4 border-t border-border flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">ID Number</p>
-                    <p className="text-sm font-mono font-bold">{employee.employee_id || 'ID-PENDING'}</p>
-                  </div>
-                  {/* Faux Barcode generated using simple divs */}
-                  <div className="flex gap-[2px] h-8 items-end opacity-70">
-                    {[3,1,4,1,5,9,2,6,5,3,5].map((w, i) => (
-                      <div key={i} className="bg-foreground" style={{ width: `${w}px`, height: `${Math.max(40, w*10)}%` }} />
+                <div className="mt-auto pb-4 flex flex-col items-center">
+                  <div className="w-full flex justify-center gap-0.5 mb-1.5 opacity-60">
+                    {Array.from({ length: 30 }).map((_, i) => (
+                      <div key={i} className={`bg-gray-800 h-6 ${i % 3 === 0 ? 'w-1' : i % 2 === 0 ? 'w-0.5' : 'w-px'}`} />
                     ))}
                   </div>
+                  <p className="text-[7px] text-gray-400 font-mono tracking-widest">
+                    ID: {employee.employee_id || employee.id.split('-')[0].toUpperCase()}
+                  </p>
                 </div>
               </div>
+
+              {/* Bottom Color Bar */}
+              <div className="h-1.5 w-full bg-primary absolute bottom-0" />
             </div>
-            
-            <div className="mt-8 flex gap-3 w-full max-w-[288px]">
-              <Button variant="outline" className="flex-1 gap-2" onClick={() => window.print()}>
-                <Printer className="size-4" />
-                Print
-              </Button>
-              <Button className="flex-1 gap-2" onClick={() => toast.success('Downloaded as PDF (Simulated)')}>
-                <Download className="size-4" />
-                Download
+
+            {/* Action buttons */}
+            <div className="flex justify-center gap-2 mt-20 sm:mt-24 no-print w-full bg-background/80 backdrop-blur-sm p-4 rounded-xl border shadow-lg">
+              <Button variant="outline" onClick={() => setIdCardOpen(false)}>Close</Button>
+              <Button className="gap-2" onClick={() => window.print()}>
+                <Printer className="size-4" /> Print Badge
               </Button>
             </div>
           </div>
