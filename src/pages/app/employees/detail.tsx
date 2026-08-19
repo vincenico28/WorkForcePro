@@ -74,6 +74,7 @@ export default function EmployeeDetailPage() {
     last_name: '',
     email: '',
     phone: '',
+    gender: 'unspecified',
     position: '',
     department_id: '',
     role: 'employee' as EmployeeRole,
@@ -138,6 +139,7 @@ export default function EmployeeDetailPage() {
       last_name: employee.last_name ?? '',
       email: employee.email,
       phone: employee.phone ?? '',
+      gender: employee.gender || 'unspecified',
       position: employee.position ?? '',
       department_id: employee.department_id ?? '',
       role: employee.role,
@@ -183,6 +185,7 @@ export default function EmployeeDetailPage() {
         first_name: editForm.first_name,
         last_name: editForm.last_name,
         phone: editForm.phone || null,
+        gender: editForm.gender || 'unspecified',
         position: editForm.position || null,
         department_id: editForm.department_id || null,
         role: editForm.role,
@@ -323,6 +326,14 @@ export default function EmployeeDetailPage() {
                     </a>
                   </div>
                 )}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <UserCheck className="size-3.5" /> Gender
+                  </span>
+                  <Badge variant="outline" className="text-[11px] font-medium capitalize">
+                    {employee.gender === 'female' ? '♀ Female' : employee.gender === 'male' ? '♂ Male' : employee.gender === 'other' ? 'Other' : 'Unspecified'}
+                  </Badge>
+                </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground flex items-center gap-1.5">
                     <Calendar className="size-3.5" /> Date Hired
@@ -633,7 +644,26 @@ export default function EmployeeDetailPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Gender / Biological Sex</Label>
+                    <Select value={editForm.gender || 'unspecified'} onValueChange={v => upd('gender', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="female">Female (♀)</SelectItem>
+                        <SelectItem value="male">Male (♂)</SelectItem>
+                        <SelectItem value="other">Other / Non-Binary</SelectItem>
+                        <SelectItem value="unspecified">Prefer not to say / Unspecified</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Hire Date</Label>
+                    <Input type="date" value={editForm.hire_date} onChange={e => upd('hire_date', e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs">Role</Label>
                     <Select value={editForm.role} onValueChange={v => upd('role', v as EmployeeRole)}>
@@ -657,10 +687,6 @@ export default function EmployeeDetailPage() {
                         <SelectItem value="intern">Intern / OJT</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Hire Date</Label>
-                    <Input type="date" value={editForm.hire_date} onChange={e => upd('hire_date', e.target.value)} />
                   </div>
                 </div>
               </TabsContent>

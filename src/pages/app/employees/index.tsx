@@ -142,6 +142,7 @@ type EmpFormState = {
   last_name: string
   email: string
   phone: string
+  gender: string
   position: string
   department_id: string
   role: EmployeeRole
@@ -167,6 +168,7 @@ const EMPTY_FORM: EmpFormState = {
   last_name: '',
   email: '',
   phone: '',
+  gender: 'unspecified',
   position: '',
   department_id: '',
   role: 'employee',
@@ -262,6 +264,25 @@ function EmployeeFormModal({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Gender / Biological Sex *</Label>
+                  <Select value={form.gender || 'unspecified'} onValueChange={v => update('gender', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="female">Female (♀)</SelectItem>
+                      <SelectItem value="male">Male (♂)</SelectItem>
+                      <SelectItem value="other">Other / Non-Binary</SelectItem>
+                      <SelectItem value="unspecified">Prefer not to say / Unspecified</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Hire / Start Date</Label>
+                  <Input type="date" value={form.hire_date} onChange={e => update('hire_date', e.target.value)} />
+                </div>
+              </div>
+
               {!isEdit && (
                 <div className="space-y-1">
                   <Label className="text-xs">Initial Temporary Password *</Label>
@@ -294,7 +315,7 @@ function EmployeeFormModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">System Role</Label>
                   <Select value={form.role} onValueChange={v => update('role', v as EmployeeRole)}>
@@ -318,10 +339,6 @@ function EmployeeFormModal({
                       <SelectItem value="intern">Intern / OJT</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Hire / Start Date</Label>
-                  <Input type="date" value={form.hire_date} onChange={e => update('hire_date', e.target.value)} />
                 </div>
               </div>
             </TabsContent>
@@ -548,6 +565,7 @@ export default function EmployeesPage() {
       last_name: emp.last_name ?? '',
       email: emp.email,
       phone: emp.phone ?? '',
+      gender: emp.gender || 'unspecified',
       position: emp.position ?? '',
       department_id: emp.department_id ?? '',
       role: emp.role,
@@ -604,6 +622,7 @@ export default function EmployeesPage() {
           first_name: form.first_name,
           last_name: form.last_name,
           phone: form.phone || null,
+          gender: form.gender || 'unspecified',
           position: form.position || null,
           department_id: form.department_id || null,
           role: form.role,
@@ -656,6 +675,7 @@ export default function EmployeesPage() {
         first_name: form.first_name,
         last_name: form.last_name,
         phone: form.phone || null,
+        gender: form.gender || 'unspecified',
         position: form.position || null,
         department_id: form.department_id || null,
         role: form.role,

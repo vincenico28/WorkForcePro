@@ -43,6 +43,9 @@ const STATUS_CONFIG: Record<string, { className: string; label: string; icon: Re
   cancelled: { label: 'Cancelled', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', icon: XCircle },
 }
 
+export const FEMALE_EXCLUSIVE_LEAVE_CODES = ['ML', 'VAWC', 'SLW'] // Maternity (RA 11210), Anti-VAWC (RA 9262), Magna Carta of Women (RA 9710)
+export const MALE_EXCLUSIVE_LEAVE_CODES = ['PL'] // Paternity Leave (RA 8187)
+
 const DOLE_STATUTORY_INFO: Record<string, {
   act: string
   allowance: string
@@ -66,14 +69,14 @@ const DOLE_STATUTORY_INFO: Record<string, {
   },
   'ML': {
     act: 'Republic Act No. 11210 (Expanded Maternity Leave)',
-    allowance: '105 Days Full Pay (120d Solo Mothers)',
-    description: '105 days paid maternity leave for live childbirth (60d for miscarriage).',
+    allowance: '105 Days Full Pay (120d Solo Mothers) • ♀ Female Only',
+    description: '105 days paid maternity leave for live childbirth (60d for miscarriage) exclusively for female employees.',
     requiredDoc: 'SSS Mat-1 Notification & Ultrasound / Birth Record',
     isMandatoryDoc: true,
   },
   'PL': {
     act: 'Republic Act No. 8187 (Paternity Leave Act)',
-    allowance: '7 Days Full Pay',
+    allowance: '7 Days Full Pay • ♂ Male Only',
     description: '7 days paid leave for married male employees for first 4 child deliveries.',
     requiredDoc: 'Marriage Certificate & Child Birth Certificate',
     isMandatoryDoc: true,
@@ -87,14 +90,14 @@ const DOLE_STATUTORY_INFO: Record<string, {
   },
   'SLW': {
     act: 'Republic Act No. 9710 (Magna Carta of Women)',
-    allowance: 'Up to 60 Days (2 Months) Full Pay',
-    description: 'Special paid leave following surgery caused by gynecological disorders.',
+    allowance: 'Up to 60 Days (2 Months) Full Pay • ♀ Female Only',
+    description: 'Special paid leave following surgery caused by gynecological disorders exclusively for female employees.',
     requiredDoc: 'Medical Surgical Certificate & Operative Technique Record',
     isMandatoryDoc: true,
   },
   'VAWC': {
     act: 'Republic Act No. 9262 (Anti-VAWC Act)',
-    allowance: '10 Days Full Pay',
+    allowance: '10 Days Full Pay • ♀ Female Only',
     description: 'Paid leave for female employees or children who are victims of violence.',
     requiredDoc: 'Barangay Protection Order (BPO) or Police / Court Certification',
     isMandatoryDoc: true,
@@ -133,6 +136,9 @@ function RequestLeaveDialog() {
     reason: '',
   })
 
+  const targetEmp = employees?.find(e => e.id === form.employee_id) || employee
+  const empGender = targetEmp?.gender?.toLowerCase() || ''
+
   const update = (k: string, v: string) => {
     setForm(p => {
       const next = { ...p, [k]: v }
@@ -159,6 +165,9 @@ function RequestLeaveDialog() {
   const doleInfo = selectedType?.code ? DOLE_STATUTORY_INFO[selectedType.code] : undefined
   const isDocMandatory = doleInfo?.isMandatoryDoc ?? selectedType?.requires_attachment ?? false
 
+  const isSelectedFemaleOnly = FEMALE_EXCLUSIVE_LEAVE_CODES.includes(selectedType?.code || '')
+  const isSelectedMaleOnly = MALE_EXCLUSIVE_LEAVE_CODES.includes(selectedType?.code || '')
+
   const bal = balances?.find(b => b.leave_type_id === form.leave_type_id)
   const allocated = bal?.allocated_days ?? selectedType?.days_allowed ?? 0
   const used = bal?.used_days ?? 0
@@ -171,6 +180,22 @@ function RequestLeaveDialog() {
     e.preventDefault()
     const days = calcDays()
     if (days <= 0) { toast.error('End date must be after start date'); return }
+
+    // Gender Eligibility Checks
+    if (isSelectedFemaleOnly && empGender === 'male') {
+      toast.error('Gender Eligibility Restriction', {
+        description: `${selectedType?.name} is a female-exclusive statutory entitlement under Philippine Republic Acts (RA 11210 Maternity, RA 9262 VAWC, RA 9710 Magna Carta of Women).`,
+      })
+      return
+    }
+
+    if (isSelectedMaleOnly && empGender === 'female') {
+      toast.error('Gender Eligibility Restriction', {
+        description: `${selectedType?.name} is exclusively reserved for married male employees under RA 8187.`,
+      })
+      return
+    }
+
     if (isOverLimit) { 
       toast.error(`Exceeds DOLE statutory leave limit! You only have ${remaining} day(s) remaining for ${selectedType?.name || 'this leave type'}.`)
       return 
@@ -247,38 +272,87 @@ function RequestLeaveDialog() {
                 </SelectTrigger>
                 <SelectContent>
                   {employees?.map(e => (
-                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
+                    <SelectItem key={e.id} value={e.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{e.first_name} {e.last_name}</span>
+                        <span className="text-[10px] text-muted-foreground capitalize">({e.gender || 'unspecified'})</span>
+                      </div>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           )}
           <div className="space-y-1.5">
-            <Label>Statutory Leave Type *</Label>
+            <div className="flex items-center justify-between">
+              <Label>Statutory Leave Type *</Label>
+              {empGender && (
+                <span className="text-[11px] text-muted-foreground font-medium capitalize">
+                  Applicant: {empGender === 'female' ? '♀ Female' : empGender === 'male' ? '♂ Male' : empGender}
+                </span>
+              )}
+            </div>
             <Select value={form.leave_type_id} onValueChange={v => update('leave_type_id', v)} required>
               <SelectTrigger><SelectValue placeholder="Select DOLE statutory leave type" /></SelectTrigger>
               <SelectContent>
-                {leaveTypes?.map(lt => (
-                  <SelectItem key={lt.id} value={lt.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="size-2 rounded-full" style={{ background: lt.color }} />
-                      <span className="font-medium">{lt.name}</span>
-                      <span className="text-xs text-muted-foreground">({lt.days_allowed}d DOLE limit)</span>
-                    </div>
-                  </SelectItem>
-                ))}
+                {leaveTypes?.map(lt => {
+                  const isFemaleOnly = FEMALE_EXCLUSIVE_LEAVE_CODES.includes(lt.code || '')
+                  const isMaleOnly = MALE_EXCLUSIVE_LEAVE_CODES.includes(lt.code || '')
+                  const isBlockedForMale = isFemaleOnly && empGender === 'male'
+                  const isBlockedForFemale = isMaleOnly && empGender === 'female'
+                  const isBlocked = isBlockedForMale || isBlockedForFemale
+
+                  return (
+                    <SelectItem 
+                      key={lt.id} 
+                      value={lt.id}
+                      disabled={isBlocked}
+                      className={isBlocked ? 'opacity-40 cursor-not-allowed' : ''}
+                    >
+                      <div className="flex items-center justify-between w-full gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="size-2 rounded-full shrink-0" style={{ background: lt.color }} />
+                          <span className="font-medium">{lt.name}</span>
+                          <span className="text-xs text-muted-foreground">({lt.days_allowed}d DOLE limit)</span>
+                        </div>
+                        {isFemaleOnly && (
+                          <span className="text-[10px] font-semibold text-pink-600 bg-pink-50 dark:bg-pink-950/40 px-1.5 py-0.5 rounded border border-pink-200 dark:border-pink-900 shrink-0">
+                            ♀ Female Only
+                          </span>
+                        )}
+                        {isMaleOnly && (
+                          <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-900 shrink-0">
+                            ♂ Male Only
+                          </span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  )
+                })}
               </SelectContent>
             </Select>
           </div>
 
           {/* DOLE Statutory Info Box */}
           {doleInfo && (
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-1 text-xs">
-              <div className="flex items-center justify-between font-semibold text-primary">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between font-semibold text-primary flex-wrap gap-1">
                 <span>{doleInfo.act}</span>
-                <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary">
-                  {doleInfo.allowance}
-                </Badge>
+                <div className="flex items-center gap-1">
+                  {isSelectedFemaleOnly && (
+                    <Badge variant="outline" className="text-[10px] bg-pink-100/70 text-pink-800 border-pink-300 dark:bg-pink-950/50 dark:text-pink-300">
+                      ♀ Female Only
+                    </Badge>
+                  )}
+                  {isSelectedMaleOnly && (
+                    <Badge variant="outline" className="text-[10px] bg-blue-100/70 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300">
+                      ♂ Male Only
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary">
+                    {doleInfo.allowance}
+                  </Badge>
+                </div>
               </div>
               <p className="text-muted-foreground text-[11px]">{doleInfo.description}</p>
             </div>

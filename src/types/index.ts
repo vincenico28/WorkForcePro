@@ -50,6 +50,7 @@ export interface Employee {
   role: EmployeeRole
   position?: string | null
   employment_type: EmploymentType
+  gender?: 'male' | 'female' | 'other' | 'unspecified' | string | null
   hire_date?: string | null
   birth_date?: string | null
   address?: string | null
