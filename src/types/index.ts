@@ -102,7 +102,7 @@ export interface Schedule {
   shifts?: Shift
 }
 
-export type AttendanceStatus = 'present' | 'absent' | 'late' | 'half_day' | 'holiday'
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'half_day' | 'holiday' | 'ob'
 
 export interface AttendanceRecord {
   id: string
