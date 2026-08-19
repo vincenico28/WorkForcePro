@@ -3,7 +3,7 @@ import {
   Star, TrendingUp, Target, Award, Plus, ChevronRight,
   Users, CheckCircle, Clock, BarChart3, Loader2, Brain, Sparkles, Search,
   Printer, ShieldCheck, FileCheck2, AlertCircle, HelpCircle, ArrowUpRight,
-  Calendar, Check, ChevronsUpDown, Download
+  Calendar, Check, ChevronsUpDown, Download, Lock
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -177,6 +177,10 @@ function AppraisalDetailDialog({
   const { mutateAsync: acknowledgeReview, isPending } = useAcknowledgePerformanceReview()
   const printableRef = useRef<HTMLDivElement>(null)
 
+  const { can } = usePermissions()
+  const { employee } = useAuthStore()
+  const isHigherUp = can.managePerformance() || can.isHR() || employee?.role === 'admin' || employee?.role === 'super_admin' || employee?.role === 'hr_manager' || employee?.role === 'team_supervisor'
+
   const overall = review.overall_rating || 3.5
   const tier = getPerformanceTier(overall)
 
@@ -264,7 +268,13 @@ function AppraisalDetailDialog({
             <div>
               <span className="text-xs text-muted-foreground font-medium">Evaluator</span>
               <p className="font-semibold text-foreground mt-0.5">
-                {review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : 'HR / Supervisor'}
+                {isHigherUp ? (
+                  review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : 'HR / Supervisor'
+                ) : (
+                  <span className="text-muted-foreground italic flex items-center gap-1">
+                    <Lock className="size-3 text-muted-foreground/70" /> Confidential Evaluator
+                  </span>
+                )}
               </p>
             </div>
           </div>
