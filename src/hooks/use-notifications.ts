@@ -15,8 +15,9 @@ export function useNotifications() {
   useEffect(() => {
     if (!employee) return
 
+    const channelName = `notifications_${employee.id}_${Math.random().toString(36).substring(2, 9)}`
     const channel = supabase
-      .channel(`public:notifications:${employee.id}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `employee_id=eq.${employee.id}` },
@@ -106,6 +107,77 @@ export function useMarkAllNotificationsRead() {
         .from('notifications')
         .update({ is_read: true })
         .eq('employee_id', employee.id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications', employee?.id] }),
+  })
+}
+
+export function useSendNotification() {
+  const qc = useQueryClient()
+  const { employee } = useAuthStore()
+
+  return useMutation({
+    mutationFn: async (payload: {
+      employee_ids: string[]
+      title: string
+      message?: string
+      type: 'info' | 'success' | 'warning' | 'error'
+      category: 'attendance' | 'leave' | 'schedule' | 'system' | 'announcement'
+      action_url?: string
+    }) => {
+      const records = payload.employee_ids.map(empId => ({
+        employee_id: empId,
+        title: payload.title,
+        message: payload.message,
+        type: payload.type,
+        category: payload.category,
+        action_url: payload.action_url,
+        is_read: false,
+      }))
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert(records)
+        .select()
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+export function useDeleteNotification() {
+  const qc = useQueryClient()
+  const { employee } = useAuthStore()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications', employee?.id] }),
+  })
+}
+
+export function useClearReadNotifications() {
+  const qc = useQueryClient()
+  const { employee } = useAuthStore()
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!employee) return
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('employee_id', employee.id)
+        .eq('is_read', true)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications', employee?.id] }),
