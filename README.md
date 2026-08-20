@@ -168,46 +168,7 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 - npm or pnpm
 - Supabase Account / Project
 
-### Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/vincenico28/WorkForcePro.git
-   cd WorkForcePro
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables:**
-   Create a `.env` file in the project root:
-   ```env
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-   VITE_GEMINI_API_KEY=your-gemini-api-key
-   VITE_API_BASE_URL=https://your-python-ai-service.onrender.com
-   ```
-
-4. **Apply Database Migrations:**
-   Run migrations via the Supabase CLI or SQL Editor:
-   ```bash
-   npx supabase db push
-   ```
-
-5. **Start the local development server:**
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:5173](http://localhost:5173) (or `http://localhost:5174`) in your browser.
-
-6. **Production Build & Verification:**
-   ```bash
-   npm run build
-   ```
-
----
 
 ## 📄 License
 Designed and developed for **Priority Handling Logistics, Inc.** All rights reserved.
