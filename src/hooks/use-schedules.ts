@@ -104,3 +104,24 @@ export function useDeleteSchedule() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
   })
 }
+
+export function useBulkDeleteSchedules() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!ids || ids.length === 0) return
+      // Perform batch deletion in chunks of 200 in a single network query
+      const chunkSize = 200
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize)
+        const { error } = await supabase
+          .from('schedules')
+          .delete()
+          .in('id', chunk)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules'] }),
+  })
+}
+

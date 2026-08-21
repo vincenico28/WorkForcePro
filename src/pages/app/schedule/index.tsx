@@ -13,7 +13,7 @@ import { downloadCSV } from '@/utils/export'
 import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useLeaveRequests } from '@/hooks/use-leaves'
-import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule, useBulkCreateSchedule } from '@/hooks/use-schedules'
+import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule, useBulkCreateSchedule, useBulkDeleteSchedules } from '@/hooks/use-schedules'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -56,8 +56,15 @@ export default function SchedulePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [aiResult, setAiResult] = useState<string | null>(null)
 
+  // Bulk Clear State
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
-  const [clearScope, setClearScope] = useState<'current_week' | 'full_month'>('current_week')
+  const [clearScope, setClearScope] = useState<'current_week' | 'full_month' | 'custom_range'>('full_month')
+  const [clearCustomStart, setClearCustomStart] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [clearCustomEnd, setClearCustomEnd] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'))
+  const [clearDept, setClearDept] = useState('all')
+  const [clearEmployee, setClearEmployee] = useState('all')
+  const [clearShift, setClearShift] = useState('all')
+  const [preserveLeaves, setPreserveLeaves] = useState(true)
 
   const [editShiftOpen, setEditShiftOpen] = useState(false)
   const [selectedCellSched, setSelectedCellSched] = useState<{ id?: string; employee_id: string; employee_name: string; date: string; shift_id?: string } | null>(null)
@@ -80,6 +87,7 @@ export default function SchedulePage() {
   const createSchedule = useCreateSchedule()
   const deleteSchedule = useDeleteSchedule()
   const bulkCreateSchedule = useBulkCreateSchedule()
+  const bulkDeleteSchedules = useBulkDeleteSchedules()
 
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
   
@@ -354,31 +362,83 @@ export default function SchedulePage() {
     }
   }
 
-  // Clear Schedule (Preserves leaves)
+  // Calculate schedules that match current bulk clear criteria
+  const schedulesToClear = useMemo(() => {
+    if (!schedules || schedules.length === 0) return []
+    let targetDateStrings: string[] = []
+    if (clearScope === 'current_week') {
+      const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+      targetDateStrings = [0, 1, 2, 3, 4, 5, 6].map(i => format(addDays(weekStart, i), 'yyyy-MM-dd'))
+    } else if (clearScope === 'full_month') {
+      targetDateStrings = days.map(d => format(d, 'yyyy-MM-dd'))
+    } else {
+      if (clearCustomStart && clearCustomEnd) {
+        const s = new Date(clearCustomStart)
+        const e = new Date(clearCustomEnd)
+        if (s <= e) {
+          targetDateStrings = eachDayOfInterval({ start: s, end: e }).map(d => format(d, 'yyyy-MM-dd'))
+        }
+      }
+    }
+
+    return schedules.filter(s => {
+      if (!targetDateStrings.includes(s.date)) return false
+      if (preserveLeaves && s.status === 'on_leave') return false
+      if (clearEmployee !== 'all' && s.employee_id !== clearEmployee) return false
+      if (clearDept !== 'all') {
+        const emp = employees?.find(e => e.id === s.employee_id)
+        if (emp?.departments?.name !== clearDept) return false
+      }
+      if (clearShift !== 'all' && s.shift_id !== clearShift) return false
+      return true
+    })
+  }, [schedules, clearScope, clearCustomStart, clearCustomEnd, preserveLeaves, clearEmployee, clearDept, clearShift, days, employees])
+
+  const uniqueClearPersonnelCount = useMemo(() => {
+    return new Set(schedulesToClear.map(s => s.employee_id)).size
+  }, [schedulesToClear])
+
+  // Fast Bulk Clear Schedule (Single Query)
   const handleClearSchedules = async () => {
-    const loadId = toast.loading('Clearing scheduled shifts...')
+    if (schedulesToClear.length === 0) {
+      toast.info('No scheduled shifts found matching the selected filter criteria.')
+      return
+    }
+
+    const count = schedulesToClear.length
+    const loadId = toast.loading(`Instantly clearing ${count} scheduled shift${count > 1 ? 's' : ''}...`)
     try {
-      let targetDateStrings: string[] = []
-      if (clearScope === 'current_week') {
-        const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
-        targetDateStrings = [0, 1, 2, 3, 4, 5, 6].map(i => format(addDays(weekStart, i), 'yyyy-MM-dd'))
-      } else {
-        targetDateStrings = days.map(d => format(d, 'yyyy-MM-dd'))
-      }
-
-      const schedulesToDelete = schedules?.filter(s => 
-        targetDateStrings.includes(s.date) && s.status !== 'on_leave'
-      ) || []
-
-      for (const s of schedulesToDelete) {
-        await deleteSchedule.mutateAsync(s.id)
-      }
-
+      const idsToDelete = schedulesToClear.map(s => s.id)
+      await bulkDeleteSchedules.mutateAsync(idsToDelete)
       await refetchSchedules()
-      toast.success(`Cleared ${schedulesToDelete.length} shifts. Approved leaves remain intact.`, { id: loadId })
+      toast.success(`Successfully cleared ${count} shift${count > 1 ? 's' : ''} across ${uniqueClearPersonnelCount} employee${uniqueClearPersonnelCount > 1 ? 's' : ''}! ${preserveLeaves ? 'Approved leaves were preserved.' : ''}`, { id: loadId })
       setClearConfirmOpen(false)
     } catch (err: any) {
       toast.error('Failed to clear schedules: ' + err.message, { id: loadId })
+    }
+  }
+
+  // Quick Clear Employee Month Shifts
+  const handleClearEmployeeMonth = async (empId: string, empName: string) => {
+    const monthDateStrings = days.map(d => format(d, 'yyyy-MM-dd'))
+    const toDelete = schedules?.filter(s => 
+      s.employee_id === empId && 
+      monthDateStrings.includes(s.date) && 
+      s.status !== 'on_leave'
+    ) || []
+
+    if (toDelete.length === 0) {
+      toast.info(`No active shifts to clear for ${empName} this month.`)
+      return
+    }
+
+    const loadId = toast.loading(`Clearing ${toDelete.length} shifts for ${empName}...`)
+    try {
+      await bulkDeleteSchedules.mutateAsync(toDelete.map(s => s.id))
+      await refetchSchedules()
+      toast.success(`Cleared ${toDelete.length} shifts for ${empName}!`, { id: loadId })
+    } catch (err: any) {
+      toast.error(`Failed to clear shifts for ${empName}: ` + err.message, { id: loadId })
     }
   }
 
@@ -904,7 +964,7 @@ Please analyze and format your report with clear markdown headers:
                         })}
 
                         {/* Sticky Summary Column */}
-                        <td className="sticky right-0 z-10 bg-card p-2 text-center border-l border-border/40 shadow-[-2px_0_5px_rgba(0,0,0,0.02)]">
+                        <td className="sticky right-0 z-10 bg-card p-2 text-center border-l border-border/40 shadow-[-2px_0_5px_rgba(0,0,0,0.02)] group-hover:bg-muted/30">
                           <div className="flex flex-col items-center justify-center gap-0.5">
                             <span className="font-semibold text-foreground">
                               {stats.shiftCount} shifts
@@ -916,6 +976,17 @@ Please analyze and format your report with clear markdown headers:
                               <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-300 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-400">
                                 {stats.leaveCount}d Leave
                               </Badge>
+                            )}
+                            {can.manageSchedule() && stats.shiftCount > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 px-1.5 text-[9px] text-destructive hover:bg-destructive/10 hover:text-destructive mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleClearEmployeeMonth(emp.id, `${emp.first_name} ${emp.last_name || ''}`.trim())}
+                                title={`Clear all ${stats.shiftCount} shifts for ${emp.first_name} this month`}
+                              >
+                                <Trash2 className="size-2.5 mr-0.5" /> Clear
+                              </Button>
                             )}
                           </div>
                         </td>
@@ -1323,33 +1394,158 @@ Please analyze and format your report with clear markdown headers:
         </DialogContent>
       </Dialog>
 
-      {/* 5. Clear Schedule Confirmation Modal */}
+      {/* 5. Advanced Bulk Clear Schedule Confirmation Modal */}
       <Dialog open={clearConfirmOpen} onOpenChange={setClearConfirmOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive font-bold">
-              <AlertTriangle className="size-5" /> Clear Scheduled Shifts
+            <DialogTitle className="flex items-center gap-2 text-destructive font-bold text-lg">
+              <Trash2 className="size-5" /> Bulk Clear Scheduled Shifts
             </DialogTitle>
             <DialogDescription>
-              This will remove scheduled shifts for the selected period. Approved statutory leaves will NOT be deleted.
+              Instantly wipe multiple shift assignments in a single lightning-fast bulk operation.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+
+          <div className="space-y-4 py-2 text-xs">
+            {/* Scope Selection */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Select Scope to Clear</Label>
+              <Label className="text-xs font-semibold">Date Range Scope</Label>
               <Select value={clearScope} onValueChange={(v: any) => setClearScope(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="current_week">Current Week Only</SelectItem>
                   <SelectItem value="full_month">Full Month ({format(currentMonth, 'MMMM yyyy')})</SelectItem>
+                  <SelectItem value="current_week">Current Week Only</SelectItem>
+                  <SelectItem value="custom_range">Custom Date Range...</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {clearScope === 'custom_range' && (
+              <div className="grid grid-cols-2 gap-3 p-3 bg-muted/40 rounded-lg border border-border/50">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-medium">Start Date</Label>
+                  <Input 
+                    type="date" 
+                    value={clearCustomStart} 
+                    onChange={e => setClearCustomStart(e.target.value)} 
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-medium">End Date</Label>
+                  <Input 
+                    type="date" 
+                    value={clearCustomEnd} 
+                    onChange={e => setClearCustomEnd(e.target.value)} 
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Target Filtering Grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Filter by Department</Label>
+                <Select value={clearDept} onValueChange={setClearDept}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {uniqueDepartments.map(d => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Filter by Shift Type</Label>
+                <Select value={clearShift} onValueChange={setClearShift}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Shift Types</SelectItem>
+                    {shifts?.map(s => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Filter by Employee (Optional)</Label>
+              <Select value={clearEmployee} onValueChange={setClearEmployee}>
+                <SelectTrigger><SelectValue placeholder="All Personnel" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Personnel ({employees?.length || 0} staff)</SelectItem>
+                  {employees?.map(e => (
+                    <SelectItem key={e.id} value={e.id}>{e.first_name} {e.last_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Safety Options */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50/70 dark:bg-amber-950/20 dark:border-amber-900/40 p-3 space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={preserveLeaves} 
+                  onChange={e => setPreserveLeaves(e.target.checked)} 
+                  className="mt-0.5 rounded border-amber-400 text-primary focus:ring-primary size-4"
+                />
+                <div>
+                  <span className="font-semibold text-amber-900 dark:text-amber-300">
+                    Preserve Approved DOLE Statutory Leaves (Recommended)
+                  </span>
+                  <p className="text-[11px] text-amber-700/90 dark:text-amber-400/80">
+                    Maternity, Paternity, Solo Parent, Sick, and Vacation leaves will remain safely protected on the roster.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            {/* Impact Metric Card */}
+            <div className="rounded-xl border border-border bg-card p-3 shadow-2xs flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Target Shifts to Wipe:</p>
+                <p className="text-xl font-bold text-foreground">
+                  {schedulesToClear.length} <span className="text-xs font-normal text-muted-foreground">shifts</span>
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-medium text-muted-foreground">Affected Staff:</p>
+                <p className="text-xl font-bold text-foreground">
+                  {uniqueClearPersonnelCount} <span className="text-xs font-normal text-muted-foreground">personnel</span>
+                </p>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setClearConfirmOpen(false)}>Cancel</Button>
-              <Button variant="destructive" onClick={handleClearSchedules}>
-                Confirm & Clear Shifts
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setClearConfirmOpen(false)}
+                disabled={bulkDeleteSchedules.isPending}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={handleClearSchedules}
+                disabled={schedulesToClear.length === 0 || bulkDeleteSchedules.isPending}
+                className="gap-1.5"
+              >
+                {bulkDeleteSchedules.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Clearing Shifts...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="size-4" /> Clear {schedulesToClear.length} Shifts Now
+                  </>
+                )}
               </Button>
             </div>
           </div>
