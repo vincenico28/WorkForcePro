@@ -5,7 +5,8 @@ import {
   Clock, CheckCircle, XCircle, AlertCircle, TimerReset, MapPin, Download,
   Loader2, Camera, ShieldCheck, ShieldAlert, Globe, SwitchCamera, Sliders,
   PlusCircle, Edit2, Trash2, Printer, Search, Building2, Filter, AlertTriangle,
-  FileSpreadsheet, UserCheck, Users, Eye, CheckSquare, Sparkles, Check, MoreHorizontal
+  FileSpreadsheet, UserCheck, Users, Eye, CheckSquare, Sparkles, Check, MoreHorizontal,
+  Flag, Info
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
@@ -18,6 +19,13 @@ import { useEmployees } from '@/hooks/use-employees'
 import { useDepartments } from '@/hooks/use-misc'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePermissions } from '@/hooks/use-permissions'
+import { 
+  getHolidayForDate, 
+  getHolidaysForMonth, 
+  getPhilippineHolidays, 
+  DOLE_HOLIDAY_PAY_RULES, 
+  type PhilippineHoliday 
+} from '@/utils/philippine-holidays'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -53,7 +61,7 @@ const ATT_STATUS_CONFIG: Record<string, { label: string; className: string; icon
   present: { label: 'Present', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400', icon: CheckCircle },
   late: { label: 'Late', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400', icon: AlertCircle },
   absent: { label: 'Absent', className: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400', icon: XCircle },
-  holiday: { label: 'Holiday', className: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400', icon: CheckCircle },
+  holiday: { label: 'Holiday (DOLE)', className: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-400', icon: Flag },
   half_day: { label: 'Half Day', className: 'bg-purple-100 text-purple-700 dark:bg-purple-950/50 dark:text-purple-400', icon: AlertCircle },
   ob: { label: 'Official Business (OB)', className: 'bg-sky-100 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400', icon: Globe },
 }
@@ -334,9 +342,23 @@ function ClockWidget({ geofenceSettings }: { geofenceSettings: GeofenceState | n
           <div className="text-5xl font-bold tabular-nums tracking-tight text-sidebar-foreground">
             {format(time, 'HH:mm:ss')}
           </div>
-          <div className="mt-1 text-sm text-sidebar-foreground/60 mb-4">
+          <div className="mt-1 text-sm text-sidebar-foreground/60 mb-2">
             {format(time, 'EEEE, MMMM d, yyyy')}
           </div>
+
+          {(() => {
+            const todayHoliday = getHolidayForDate(time)
+            if (!todayHoliday) return null
+            return (
+              <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-200 border border-rose-500/40 shadow-xs">
+                <span>🇵🇭</span>
+                <span className="truncate max-w-[260px]">{todayHoliday.name}</span>
+                <span className="text-[10px] opacity-80 font-normal">
+                  ({todayHoliday.type === 'regular' ? '200% Double Pay' : '130% Premium'})
+                </span>
+              </div>
+            )
+          })()}
 
           {permissionsGranted && !isDone && (
             <div className="mx-auto max-w-sm rounded-xl overflow-hidden bg-white/5 p-2 shadow-sm border border-white/10">
@@ -512,6 +534,7 @@ function DOLEDTRDialog({
                   const dayDate = new Date(year, month, dayNum)
                   const dayName = format(dayDate, 'EEE')
                   const isWeekend = dayDate.getDay() === 0 || dayDate.getDay() === 6
+                  const holiday = getHolidayForDate(dayDate)
 
                   const clockIn = record?.clock_in ? format(new Date(record.clock_in), 'h:mm a') : ''
                   const clockOut = record?.clock_out ? format(new Date(record.clock_out), 'h:mm a') : ''
@@ -524,17 +547,42 @@ function DOLEDTRDialog({
                     totalOvertimeHours += ot
                   }
 
+                  let statusText = record ? record.status.toUpperCase() : isWeekend ? 'OFF' : 'ABSENT'
+                  if (holiday) {
+                    if (hours > 0) {
+                      statusText = `HOLIDAY WORKED (${holiday.type === 'regular' ? '200%' : '130%'})`
+                    } else {
+                      statusText = `HOLIDAY (${holiday.type === 'regular' ? 'PAID 100%' : 'UNPAID'})`
+                    }
+                  }
+
                   return (
-                    <tr key={dayNum} className={`border-b border-black/30 ${isWeekend ? 'bg-gray-50 font-semibold' : ''}`}>
-                      <td className="border border-black p-0.5 font-bold">{dayNum} ({dayName})</td>
-                      <td className="border border-black p-0.5">{clockIn ? clockIn : isWeekend ? '—' : ''}</td>
+                    <tr 
+                      key={dayNum} 
+                      className={`border-b border-black/30 ${
+                        holiday 
+                          ? holiday.type === 'regular' ? 'bg-blue-50 font-semibold' : 'bg-amber-50 font-semibold' 
+                          : isWeekend 
+                          ? 'bg-gray-50 font-semibold' 
+                          : ''
+                      }`}
+                    >
+                      <td className="border border-black p-0.5 font-bold text-left pl-1">
+                        {dayNum} ({dayName})
+                        {holiday && (
+                          <span className="ml-1 text-[9px] text-rose-700 font-extrabold" title={`${holiday.name} (${holiday.type})`}>
+                            🚩 {holiday.type === 'regular' ? 'REG' : 'SPEC'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="border border-black p-0.5">{clockIn ? clockIn : isWeekend || holiday ? '—' : ''}</td>
                       <td className="border border-black p-0.5">{hours > 0 ? '12:00 PM' : '—'}</td>
                       <td className="border border-black p-0.5">{hours > 0 ? '1:00 PM' : '—'}</td>
-                      <td className="border border-black p-0.5">{clockOut ? clockOut : isWeekend ? '—' : ''}</td>
+                      <td className="border border-black p-0.5">{clockOut ? clockOut : isWeekend || holiday ? '—' : ''}</td>
                       <td className="border border-black p-0.5 font-mono">{reg > 0 ? `${reg.toFixed(1)}h` : '—'}</td>
                       <td className="border border-black p-0.5 font-mono">{ot > 0 ? `${ot.toFixed(1)}h` : '—'}</td>
-                      <td className="border border-black p-0.5 text-[10px]">
-                        {record ? record.status.toUpperCase() : isWeekend ? 'OFF' : 'ABSENT'}
+                      <td className="border border-black p-0.5 text-[9px] font-medium">
+                        {statusText}
                       </td>
                     </tr>
                   )
@@ -768,15 +816,20 @@ export default function AttendancePage() {
 
   // Summary Metrics
   const summary = useMemo(() => {
-    if (!todayAttendance) return { present: 0, late: 0, absent: 0, missingClockOut: 0, total: 0 }
+    if (!todayAttendance) return { present: 0, late: 0, absent: 0, missingClockOut: 0, holiday: 0, total: 0 }
     return {
       present: todayAttendance.filter(a => a.status === 'present').length,
       late: todayAttendance.filter(a => a.status === 'late').length,
       absent: todayAttendance.filter(a => a.status === 'absent').length,
       missingClockOut: todayAttendance.filter(a => a.clock_in && !a.clock_out).length,
+      holiday: todayAttendance.filter(a => a.status === 'holiday').length,
       total: todayAttendance.length,
     }
   }, [todayAttendance])
+
+  // Philippine Holiday for currently inspected date and month
+  const selectedDateHoliday = useMemo(() => getHolidayForDate(selectedDate), [selectedDate])
+  const selectedMonthHolidays = useMemo(() => getHolidaysForMonth(calendarMonth.getFullYear(), calendarMonth.getMonth()), [calendarMonth])
 
   // Filtered attendance records
   const filteredAttendance = useMemo(() => {
@@ -799,7 +852,7 @@ export default function AttendancePage() {
   // Monthly Aggregation
   const monthlySummary = useMemo(() => {
     if (!monthAttendance) return []
-    const summaryMap = new Map<string, { employee: any, present: number, late: number, absent: number, half_day: number, totalHours: number, records: AttendanceRecord[] }>()
+    const summaryMap = new Map<string, { employee: any, present: number, late: number, absent: number, half_day: number, holiday: number, totalHours: number, records: AttendanceRecord[] }>()
     
     monthAttendance.forEach(record => {
       const empId = record.employee_id
@@ -810,6 +863,7 @@ export default function AttendancePage() {
           late: 0,
           absent: 0,
           half_day: 0,
+          holiday: 0,
           totalHours: 0,
           records: [],
         })
@@ -820,6 +874,7 @@ export default function AttendancePage() {
       if (record.status === 'late') stats.late++
       if (record.status === 'absent') stats.absent++
       if (record.status === 'half_day') stats.half_day++
+      if (record.status === 'holiday' || (getHolidayForDate(record.date) && record.total_hours && record.total_hours > 0)) stats.holiday++
       if (record.total_hours) stats.totalHours += record.total_hours
     })
   
@@ -912,6 +967,45 @@ export default function AttendancePage() {
         </div>
       </div>
 
+      {/* Philippine Holiday Statutory Alert Banner */}
+      {selectedDateHoliday && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs dark:border-rose-900/60 dark:bg-rose-950/30 space-y-2 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-7 items-center justify-center rounded-lg bg-rose-600 text-white font-bold text-xs shadow-2xs shrink-0">
+                🇵🇭
+              </span>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-foreground text-sm">
+                    {selectedDateHoliday.name} {selectedDateHoliday.localName && <span className="font-normal text-muted-foreground">({selectedDateHoliday.localName})</span>}
+                  </span>
+                  <Badge 
+                    className={`text-[10px] font-bold px-2 py-0.5 ${
+                      selectedDateHoliday.type === 'regular'
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-amber-600 text-white hover:bg-amber-700'
+                    }`}
+                  >
+                    {selectedDateHoliday.type === 'regular' ? '🟢 Regular Holiday (Paid 100%)' : '🟡 Special Non-Working (130% Worked)'}
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {selectedDateHoliday.description} • Legal Basis: <span className="italic">{selectedDateHoliday.legalBasis}</span>
+                </p>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <span className="text-[11px] font-bold text-rose-800 dark:text-rose-300">
+                {selectedDateHoliday.type === 'regular' 
+                  ? '🟢 Unworked: 100% Paid • Worked: 200% Double Pay' 
+                  : '🟡 Unworked: Unpaid ("No Work, No Pay") • Worked: 130%'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: Clock In Widget + Today's Summary & Roster */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Clock widget */}
@@ -922,8 +1016,13 @@ export default function AttendancePage() {
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <CardTitle className="text-base">
+                <CardTitle className="text-base flex items-center gap-2">
                   {isSameDay(selectedDate, new Date()) ? "Today's Verified Attendance" : "Daily Attendance Roster"}
+                  {selectedDateHoliday && (
+                    <Badge variant="outline" className="text-[10px] border-rose-300 bg-rose-50 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                      🇵🇭 {selectedDateHoliday.name}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <CardDescription>{format(selectedDate, 'EEEE, MMMM d, yyyy')}</CardDescription>
               </div>
@@ -1000,6 +1099,7 @@ export default function AttendancePage() {
                 filteredAttendance.map((record) => {
                   const cfg = ATT_STATUS_CONFIG[record.status] || ATT_STATUS_CONFIG.present
                   const Icon = cfg.icon
+                  const recHoliday = getHolidayForDate(record.date)
 
                   return (
                     <div key={record.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors">
@@ -1030,6 +1130,20 @@ export default function AttendancePage() {
                             <p className="text-[10px] text-muted-foreground font-mono">{record.total_hours}h paid</p>
                           ) : null}
                         </div>
+
+                        {recHoliday && (
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[9px] font-bold ${
+                              recHoliday.type === 'regular' 
+                                ? 'border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300' 
+                                : 'border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                            }`}
+                            title={`${recHoliday.name}: ${recHoliday.payRuleWorked}`}
+                          >
+                            🇵🇭 {recHoliday.type === 'regular' ? '200% Holiday Double Pay' : '130% Holiday Pay'}
+                          </Badge>
+                        )}
 
                         <Badge className={`text-[10px] font-semibold ${cfg.className}`}>
                           <Icon className="mr-1 size-3" />
@@ -1083,22 +1197,45 @@ export default function AttendancePage() {
           <Card className="border-border/70 shadow-xs">
             <CardHeader>
               <CardTitle className="text-base">Historical Attendance Calendar</CardTitle>
-              <CardDescription>Select any date on the calendar to view verified logs and timecard entries</CardDescription>
+              <CardDescription>Select any date on the calendar to view verified logs, timecard entries, and official Philippine holiday rules</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-6">
-                <div className="rounded-md border p-3 flex justify-center bg-card shadow-xs">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(d) => d && setSelectedDate(d)}
-                    className="rounded-md"
-                  />
+                <div className="space-y-3">
+                  <div className="rounded-md border p-3 flex justify-center bg-card shadow-xs">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(d) => d && setSelectedDate(d)}
+                      className="rounded-md"
+                    />
+                  </div>
+
+                  {selectedDateHoliday && (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50/80 p-3 text-xs dark:border-rose-900/60 dark:bg-rose-950/30 space-y-1.5 max-w-[280px]">
+                      <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-300">
+                        <Flag className="size-3.5" />
+                        <span className="truncate">{selectedDateHoliday.name}</span>
+                      </div>
+                      <Badge className={`text-[9px] px-1.5 py-0 ${selectedDateHoliday.type === 'regular' ? 'bg-blue-600 text-white' : 'bg-amber-600 text-white'}`}>
+                        {selectedDateHoliday.type === 'regular' ? 'Regular Holiday (Paid 100%)' : 'Special Non-Working (130%)'}
+                      </Badge>
+                      <p className="text-[10px] text-muted-foreground pt-0.5">
+                        {selectedDateHoliday.payRuleWorked}
+                      </p>
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center justify-between border-b pb-2">
-                    <h3 className="font-semibold text-sm">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
                       Logs for {format(selectedDate, 'MMMM d, yyyy')}
+                      {selectedDateHoliday && (
+                        <Badge variant="outline" className="text-[10px] border-rose-300 bg-rose-50 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+                          🇵🇭 {selectedDateHoliday.name}
+                        </Badge>
+                      )}
                     </h3>
                     <span className="text-xs text-muted-foreground font-medium">
                       {filteredAttendance.length} records
@@ -1111,33 +1248,48 @@ export default function AttendancePage() {
                         No logs recorded for this date.
                       </p>
                     ) : (
-                      filteredAttendance.map(record => (
-                        <div key={record.id} className="flex items-center justify-between p-3 rounded-lg border border-border text-xs hover:bg-muted/30">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="size-8">
-                              {record.employees?.avatar_url && <AvatarImage src={record.employees.avatar_url} />}
-                              <AvatarFallback>{record.employees?.first_name?.[0]}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-semibold text-foreground text-sm">{record.employees?.first_name} {record.employees?.last_name}</p>
-                              <p className="text-[11px] text-muted-foreground">
-                                In: {record.clock_in ? format(new Date(record.clock_in), 'hh:mm a') : 'N/A'} • Out: {record.clock_out ? format(new Date(record.clock_out), 'hh:mm a') : 'N/A'}
-                              </p>
+                      filteredAttendance.map(record => {
+                        const recHoliday = getHolidayForDate(record.date)
+                        return (
+                          <div key={record.id} className="flex items-center justify-between p-3 rounded-lg border border-border text-xs hover:bg-muted/30">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="size-8">
+                                {record.employees?.avatar_url && <AvatarImage src={record.employees.avatar_url} />}
+                                <AvatarFallback>{record.employees?.first_name?.[0]}</AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold text-foreground text-sm">{record.employees?.first_name} {record.employees?.last_name}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                  In: {record.clock_in ? format(new Date(record.clock_in), 'hh:mm a') : 'N/A'} • Out: {record.clock_out ? format(new Date(record.clock_out), 'hh:mm a') : 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {recHoliday && (
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-[9px] font-bold ${
+                                    recHoliday.type === 'regular' 
+                                      ? 'border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-300' 
+                                      : 'border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                                  }`}
+                                >
+                                  🇵🇭 {recHoliday.type === 'regular' ? '200% Pay' : '130% Pay'}
+                                </Badge>
+                              )}
+                              <Badge className={ATT_STATUS_CONFIG[record.status]?.className || ''}>
+                                {ATT_STATUS_CONFIG[record.status]?.label || record.status}
+                              </Badge>
+                              {record.location && (
+                                <LocationMapDialog
+                                  clockInLocation={(record.location as any)?.clockIn}
+                                  clockOutLocation={(record.location as any)?.clockOut}
+                                />
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge className={ATT_STATUS_CONFIG[record.status]?.className || ''}>
-                              {ATT_STATUS_CONFIG[record.status]?.label || record.status}
-                            </Badge>
-                            {record.location && (
-                              <LocationMapDialog
-                                clockInLocation={(record.location as any)?.clockIn}
-                                clockOutLocation={(record.location as any)?.clockOut}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      ))
+                        )
+                      })
                     )}
                   </div>
                 </div>
@@ -1175,6 +1327,7 @@ export default function AttendancePage() {
                       <th className="py-3 px-3 text-center">Late / Tardy</th>
                       <th className="py-3 px-3 text-center">Half Day</th>
                       <th className="py-3 px-3 text-center">Absent</th>
+                      <th className="py-3 px-3 text-center">Holiday Shifts</th>
                       <th className="py-3 px-3 text-center">Total Paid Hours</th>
                       <th className="py-3 px-3 text-right">Official DTR Form 48</th>
                     </tr>
@@ -1182,7 +1335,7 @@ export default function AttendancePage() {
                   <tbody className="divide-y divide-border">
                     {monthlySummary.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-muted-foreground">
+                        <td colSpan={8} className="py-8 text-center text-muted-foreground">
                           No monthly records available for this period.
                         </td>
                       </tr>
@@ -1203,6 +1356,7 @@ export default function AttendancePage() {
                           <td className="py-3 px-3 text-center text-amber-600 font-semibold">{item.late}</td>
                           <td className="py-3 px-3 text-center text-purple-600 font-semibold">{item.half_day}</td>
                           <td className="py-3 px-3 text-center text-red-600 font-semibold">{item.absent}</td>
+                          <td className="py-3 px-3 text-center text-blue-600 font-semibold">{item.holiday}</td>
                           <td className="py-3 px-3 text-center font-mono font-bold text-foreground">{item.totalHours.toFixed(1)}h</td>
                           <td className="py-3 px-3 text-right">
                             <Button
@@ -1279,6 +1433,22 @@ export default function AttendancePage() {
                 required
               />
             </div>
+
+            {(() => {
+              const manualHoliday = getHolidayForDate(manualForm.date)
+              if (!manualHoliday) return null
+              return (
+                <div className="rounded-lg border border-rose-200 bg-rose-50/80 dark:border-rose-900/60 dark:bg-rose-950/30 p-2.5 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-300">
+                    <Flag className="size-3.5" />
+                    <span>{manualHoliday.name} ({manualHoliday.type === 'regular' ? 'Regular Holiday' : 'Special Non-Working Day'})</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {manualHoliday.payRuleWorked}
+                  </p>
+                </div>
+              )
+            })()}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
