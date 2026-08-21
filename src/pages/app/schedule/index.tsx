@@ -6,7 +6,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, Loader2, X, Search, Sparkles, Download,
   Users, Clock, Calendar as CalendarIcon, ShieldCheck, Copy, Trash2, Filter,
-  CheckCircle2, AlertTriangle, RefreshCw
+  CheckCircle2, AlertTriangle, RefreshCw, Flag, Info, Sparkle
 } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { downloadCSV } from '@/utils/export'
@@ -14,6 +14,14 @@ import { useEmployees } from '@/hooks/use-employees'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useLeaveRequests } from '@/hooks/use-leaves'
 import { useShifts, useSchedules, useCreateSchedule, useDeleteSchedule, useBulkCreateSchedule, useBulkDeleteSchedules } from '@/hooks/use-schedules'
+import { 
+  getHolidayForDate, 
+  getHolidaysForMonth, 
+  getPhilippineHolidays, 
+  DOLE_HOLIDAY_PAY_RULES, 
+  type PhilippineHoliday,
+  type PhilippineHolidayType 
+} from '@/utils/philippine-holidays'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +40,11 @@ export default function SchedulePage() {
   const [selectedEmployee, setSelectedEmployee] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedDepartment, setSelectedDepartment] = useState('all')
+
+  // Philippine Holidays Guide Modal State
+  const [holidaysGuideOpen, setHolidaysGuideOpen] = useState(false)
+  const [guideYear, setGuideYear] = useState(new Date().getFullYear())
+  const [guideTypeFilter, setGuideTypeFilter] = useState<'all' | 'regular' | 'special_non_working'>('all')
 
   // Modals state
   const [assignOpen, setAssignOpen] = useState(false)
@@ -78,6 +91,10 @@ export default function SchedulePage() {
   const monthEnd = endOfMonth(currentMonth)
   const startDate = format(monthStart, 'yyyy-MM-dd')
   const endDate = format(monthEnd, 'yyyy-MM-dd')
+
+  const monthHolidays = useMemo(() => {
+    return getHolidaysForMonth(currentMonth.getFullYear(), currentMonth.getMonth())
+  }, [currentMonth])
 
   const { data: schedules, isLoading: schedLoading, refetch: refetchSchedules } = useSchedules(
     startDate, endDate,
@@ -631,6 +648,13 @@ Please analyze and format your report with clear markdown headers:
           {can.manageSchedule() && (
             <>
               <Button 
+                variant="outline" 
+                className="gap-1.5 shrink-0 bg-rose-50/70 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 shadow-2xs font-semibold" 
+                onClick={() => setHolidaysGuideOpen(true)}
+              >
+                <Flag className="size-4 text-rose-600" /> PH Holidays ({monthHolidays.length})
+              </Button>
+              <Button 
                 variant="default" 
                 className="gap-1.5 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs" 
                 onClick={() => setAiWizardOpen(true)}
@@ -686,6 +710,76 @@ Please analyze and format your report with clear markdown headers:
           )}
         </div>
       </div>
+
+      {/* Philippine Holidays Banner for Current Month */}
+      {monthHolidays.length > 0 ? (
+        <div className="rounded-xl border border-rose-200/90 bg-rose-50/60 p-3.5 text-xs dark:border-rose-900/60 dark:bg-rose-950/20 space-y-2.5 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-7 items-center justify-center rounded-lg bg-rose-600 text-white font-bold text-xs shadow-2xs">
+                🇵🇭
+              </span>
+              <div>
+                <span className="font-bold text-foreground text-sm">
+                  Official Philippine Holidays in {format(currentMonth, 'MMMM yyyy')} ({monthHolidays.length})
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  DOLE statutory wage guidelines: Regular holidays are paid 100% unworked / 200% worked. Special non-working days are unpaid unworked / 130% worked.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs bg-background hover:bg-muted font-medium"
+              onClick={() => setHolidaysGuideOpen(true)}
+            >
+              <Info className="size-3.5 mr-1.5 text-rose-600" /> View DOLE Statutory Wage Rules
+            </Button>
+          </div>
+
+          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 pt-0.5">
+            {monthHolidays.map(h => (
+              <div 
+                key={h.date} 
+                className="flex items-start justify-between gap-2 rounded-lg border border-border/80 bg-background/90 p-2.5 shadow-2xs hover:border-primary/50 transition-colors cursor-pointer"
+                onClick={() => setHolidaysGuideOpen(true)}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                      {format(new Date(h.date), 'MMM d')}
+                    </span>
+                    <span className="font-semibold text-foreground truncate">{h.name}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
+                    {h.type === 'regular' ? '🟢 Unworked: 100% Paid • Worked: 200% Double Pay' : '🟡 Unworked: Unpaid ("No Work, No Pay") • Worked: 130%'}
+                  </p>
+                </div>
+                <Badge 
+                  variant="outline" 
+                  className={`text-[9px] shrink-0 font-bold px-1.5 py-0.5 ${
+                    h.type === 'regular' 
+                      ? 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300' 
+                      : 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300'
+                  }`}
+                >
+                  {h.type === 'regular' ? 'Regular (Paid)' : 'Special (Unpaid/130%)'}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between bg-muted/30 p-2.5 rounded-lg border border-border/40 text-xs">
+          <span className="text-muted-foreground flex items-center gap-2">
+            <span className="text-sm">🇵🇭</span> No official nationwide public holidays in {format(currentMonth, 'MMMM yyyy')}.
+          </span>
+          <Button variant="ghost" size="sm" className="h-6 text-[11px] text-primary" onClick={() => setHolidaysGuideOpen(true)}>
+            View All {currentMonth.getFullYear()} Philippine Holidays & Pay Guidelines →
+          </Button>
+        </div>
+      )}
 
       {/* KPI Stats Overview Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -850,12 +944,48 @@ Please analyze and format your report with clear markdown headers:
                     {days.map(day => {
                       const weekend = isWeekend(day)
                       const today = isToday(day)
+                      const holiday = getHolidayForDate(day)
+
                       return (
-                        <th key={day.toISOString()} className={`min-w-[34px] p-1 text-center font-medium ${weekend ? 'bg-muted/40 opacity-70' : ''}`}>
-                          <div className={`mx-auto flex size-7 flex-col items-center justify-center rounded-full text-xs font-semibold ${today ? 'bg-primary text-primary-foreground shadow-xs' : 'text-foreground'}`}>
-                            <span className="leading-none">{format(day, 'd')}</span>
+                        <th 
+                          key={day.toISOString()} 
+                          className={`min-w-[36px] p-1 text-center font-medium transition-colors ${
+                            holiday?.type === 'regular'
+                              ? 'bg-blue-100/70 dark:bg-blue-950/60'
+                              : holiday?.type === 'special_non_working'
+                              ? 'bg-amber-100/70 dark:bg-amber-950/60'
+                              : weekend 
+                              ? 'bg-muted/40 opacity-70' 
+                              : ''
+                          }`}
+                          title={holiday ? `${holiday.name} (${holiday.type === 'regular' ? 'Regular Holiday (Paid 100% unworked)' : 'Special Non-Working (Unpaid unworked)'})\n${holiday.payRuleUnworked}\n${holiday.payRuleWorked}` : undefined}
+                        >
+                          <div className="flex flex-col items-center justify-center">
+                            <div className={`mx-auto flex size-7 flex-col items-center justify-center rounded-full text-xs font-semibold ${
+                              today 
+                                ? 'bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/30' 
+                                : holiday?.type === 'regular'
+                                ? 'bg-blue-600 text-white font-bold shadow-xs'
+                                : holiday?.type === 'special_non_working'
+                                ? 'bg-amber-500 text-white font-bold shadow-xs'
+                                : 'text-foreground'
+                            }`}>
+                              <span className="leading-none">{format(day, 'd')}</span>
+                            </div>
+                            <div className="mt-0.5 text-[9px] font-medium text-muted-foreground uppercase">{format(day, 'EEE')}</div>
+                            {holiday && (
+                              <span 
+                                className={`mt-0.5 inline-block text-[8px] font-extrabold px-1 py-0.2 rounded truncate max-w-[34px] ${
+                                  holiday.type === 'regular'
+                                    ? 'bg-blue-200 text-blue-900 dark:bg-blue-900 dark:text-blue-200'
+                                    : 'bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200'
+                                }`}
+                                title={`${holiday.name} (${holiday.type === 'regular' ? 'Regular Holiday (100% Paid)' : 'Special Non-Working (Unpaid/130%)'})`}
+                              >
+                                {holiday.type === 'regular' ? 'REG' : 'SPEC'}
+                              </span>
+                            )}
                           </div>
-                          <div className="mt-0.5 text-[9px] font-medium text-muted-foreground uppercase">{format(day, 'EEE')}</div>
                         </th>
                       )
                     })}
@@ -894,11 +1024,20 @@ Please analyze and format your report with clear markdown headers:
                           const shiftColor = shift?.color || '#6366F1'
                           const colors = shift ? (shiftColors[shift.id] || { bg: shiftColor.startsWith('#') ? `${shiftColor}25` : shiftColor, text: shiftColor }) : undefined
                           const weekend = isWeekend(day)
+                          const holiday = getHolidayForDate(day)
 
                           return (
                             <td 
                               key={day.toISOString()} 
-                              className={`p-0.5 text-center relative border-r border-border/30 ${weekend ? 'bg-muted/20' : ''}`}
+                              className={`p-0.5 text-center relative border-r border-border/30 transition-colors ${
+                                holiday?.type === 'regular'
+                                  ? 'bg-blue-50/40 dark:bg-blue-950/20'
+                                  : holiday?.type === 'special_non_working'
+                                  ? 'bg-amber-50/40 dark:bg-amber-950/20'
+                                  : weekend 
+                                  ? 'bg-muted/20' 
+                                  : ''
+                              }`}
                             >
                               {onLeave ? (
                                 <div
@@ -911,7 +1050,11 @@ Please analyze and format your report with clear markdown headers:
                                 <div
                                   className="group/cell relative mx-auto flex size-7 items-center justify-center rounded text-[10px] font-bold cursor-pointer hover:scale-105 transition-transform border shadow-2xs"
                                   style={{ background: colors?.bg || `${shiftColor}25`, color: colors?.text || shiftColor, borderColor: shiftColor + '40' }}
-                                  title={`${shift?.name || 'Shift'}: ${shift?.start_time ? shift.start_time.slice(0, 5) : '09:00'}–${shift?.end_time ? shift.end_time.slice(0, 5) : '17:00'}`}
+                                  title={
+                                    holiday 
+                                      ? `${shift?.name || 'Shift'} on ${holiday.name} (${holiday.type === 'regular' ? '🟢 200% Double Pay' : '🟡 130% Premium Pay'}) • ${shift?.start_time ? shift.start_time.slice(0, 5) : '09:00'}–${shift?.end_time ? shift.end_time.slice(0, 5) : '17:00'}`
+                                      : `${shift?.name || 'Shift'}: ${shift?.start_time ? shift.start_time.slice(0, 5) : '09:00'}–${shift?.end_time ? shift.end_time.slice(0, 5) : '17:00'}`
+                                  }
                                   onClick={() => {
                                     if (can.manageSchedule()) {
                                       setSelectedCellSched({
@@ -951,7 +1094,11 @@ Please analyze and format your report with clear markdown headers:
                                           setAssignForm({ employee_id: emp.id, shift_id: shifts?.[0]?.id || '', date: dateStr, notes: '' })
                                           setAssignOpen(true)
                                         }}
-                                        title={`Assign shift for ${emp.first_name} on ${dateStr}`}
+                                        title={
+                                          holiday 
+                                            ? `Assign shift for ${emp.first_name} on ${holiday.name} (${holiday.type === 'regular' ? 'Regular 200% Pay' : 'Special 130% Pay'})`
+                                            : `Assign shift for ${emp.first_name} on ${dateStr}`
+                                        }
                                       >
                                         <Plus className="size-3" />
                                       </Button>
@@ -1576,6 +1723,141 @@ Please analyze and format your report with clear markdown headers:
                 {aiResult}
               </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 7. Philippine Holidays & DOLE Wage Compliance Guide Dialog */}
+      <Dialog open={holidaysGuideOpen} onOpenChange={setHolidaysGuideOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="pb-2 border-b border-border/60">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+                <span className="flex size-7 items-center justify-center rounded-lg bg-rose-600 text-white font-bold text-xs shadow-xs">
+                  🇵🇭
+                </span>
+                Philippine Statutory Holidays & DOLE Pay Rules
+              </DialogTitle>
+              <div className="flex items-center gap-2 mr-6">
+                <Select value={String(guideYear)} onValueChange={v => setGuideYear(Number(v))}>
+                  <SelectTrigger className="h-8 w-24 text-xs font-semibold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2025">2025</SelectItem>
+                    <SelectItem value="2026">2026</SelectItem>
+                    <SelectItem value="2027">2027</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={guideTypeFilter} onValueChange={(v: any) => setGuideTypeFilter(v)}>
+                  <SelectTrigger className="h-8 w-36 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Holiday Types</SelectItem>
+                    <SelectItem value="regular">Regular (Paid 100%)</SelectItem>
+                    <SelectItem value="special_non_working">Special Non-Working (130%)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground pt-1">
+              Official nationwide Philippine holidays and mandatory wage computation standards mandated by the Department of Labor and Employment (DOLE) and Labor Code of the Philippines.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
+            {/* DOLE Statutory Rules Comparison Cards */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900/60 dark:bg-blue-950/30 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-blue-900 dark:text-blue-300 text-xs">
+                    🟢 Regular Holiday (Labor Code Art. 94)
+                  </span>
+                  <Badge className="bg-blue-600 text-white text-[9px] px-1.5">100% Paid Unworked</Badge>
+                </div>
+                <ul className="text-[11px] text-blue-950/90 dark:text-blue-200/90 space-y-1">
+                  <li>• <strong>If Unworked:</strong> Paid <strong>100%</strong> of daily wage (provided present/on leave day before)</li>
+                  <li>• <strong>If Worked (First 8h):</strong> Paid <strong>200%</strong> (Double Pay)</li>
+                  <li>• <strong>Worked on Rest Day:</strong> Paid <strong>260%</strong> (Double Pay + 30% rest day premium)</li>
+                  <li>• <strong>Overtime (Excess of 8h):</strong> Additional 30% of hourly rate (260% / 338%)</li>
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/60 dark:bg-amber-950/30 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-900 dark:text-amber-300 text-xs">
+                    🟡 Special Non-Working Day (Proclamation)
+                  </span>
+                  <Badge className="bg-amber-600 text-white text-[9px] px-1.5">No Work, No Pay</Badge>
+                </div>
+                <ul className="text-[11px] text-amber-950/90 dark:text-amber-200/90 space-y-1">
+                  <li>• <strong>If Unworked:</strong> <strong>Unpaid</strong> ("No Work, No Pay" rule applies)</li>
+                  <li>• <strong>If Worked (First 8h):</strong> Paid <strong>130%</strong> (100% basic + 30% premium)</li>
+                  <li>• <strong>Worked on Rest Day:</strong> Paid <strong>150%</strong> (100% basic + 50% premium)</li>
+                  <li>• <strong>Overtime (Excess of 8h):</strong> Additional 30% of hourly rate (169% / 195%)</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* List of Holidays for Selected Year */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs font-semibold text-foreground px-1">
+                <span>Declared Philippine Holidays for {guideYear}</span>
+                <span className="text-muted-foreground text-[11px]">
+                  {getPhilippineHolidays(guideYear).filter(h => guideTypeFilter === 'all' || h.type === guideTypeFilter).length} total declared days
+                </span>
+              </div>
+
+              <div className="rounded-lg border border-border overflow-hidden divide-y divide-border/60">
+                {getPhilippineHolidays(guideYear)
+                  .filter(h => guideTypeFilter === 'all' || h.type === guideTypeFilter)
+                  .map(holiday => (
+                    <div key={holiday.date} className="p-2.5 bg-card hover:bg-muted/30 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-rose-600 dark:text-rose-400 shrink-0">
+                            {format(new Date(holiday.date), 'MMMM d, yyyy')} ({format(new Date(holiday.date), 'EEEE')})
+                          </span>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[9px] shrink-0 font-bold px-1.5 py-0 ${
+                              holiday.type === 'regular' 
+                                ? 'bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300' 
+                                : holiday.type === 'special_non_working'
+                                ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300'
+                                : 'bg-purple-50 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300'
+                            }`}
+                          >
+                            {holiday.type === 'regular' ? 'Regular Holiday (Paid)' : holiday.type === 'special_non_working' ? 'Special Non-Working' : 'Special Working'}
+                          </Badge>
+                        </div>
+                        <p className="font-semibold text-foreground">
+                          {holiday.name} {holiday.localName && <span className="text-muted-foreground font-normal">({holiday.localName})</span>}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {holiday.description} • <span className="italic">{holiday.legalBasis}</span>
+                        </p>
+                      </div>
+
+                      <div className="sm:text-right shrink-0 space-y-0.5 pt-1 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                        <p className="text-[11px] font-medium text-foreground">
+                          {holiday.isPaidIfUnworked ? '🟢 Paid Unworked: 100%' : '🟡 Unworked: Unpaid ("No Work No Pay")'}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Worked: <span className="font-semibold text-foreground">{holiday.workedMultiplier * 100}%</span> • Rest Day: <span className="font-semibold text-foreground">{holiday.type === 'regular' ? '260%' : '150%'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-border flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setHolidaysGuideOpen(false)}>
+              Close Guide
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
