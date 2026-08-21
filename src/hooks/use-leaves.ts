@@ -68,6 +68,22 @@ export function useLeaveBalances(employeeId: string) {
   })
 }
 
+export function useAllLeaveBalances(year: number = new Date().getFullYear()) {
+  return useQuery({
+    queryKey: ['all-leave-balances', year],
+    queryFn: async () => {
+      await supabase.rpc('initialize_yearly_leave_balances')
+
+      const { data, error } = await supabase
+        .from('leave_balances')
+        .select('*, leave_types(*)')
+        .eq('year', year)
+      if (error) throw error
+      return data as LeaveBalance[]
+    },
+  })
+}
+
 export function useCreateLeaveRequest() {
   const qc = useQueryClient()
   return useMutation({

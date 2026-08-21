@@ -78,6 +78,8 @@ export interface PhilippinePayrollItem {
   nightDiffPay: number
   holidayPay: number
   paidLeavePay: number
+  leaveConversionBonus?: number // DOLE Art. 95 Unused Leave Monetization Bonus
+  leaveConversionDays?: number // Total unused convertible days converted to cash
   deMinimisAllowance: number // Non-taxable (Rice, clothing, laundry)
   performanceIncentive: number
   grossEarnings: number

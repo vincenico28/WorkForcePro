@@ -8,6 +8,7 @@ import {
   CheckCircle, Clock, AlertCircle, ChevronRight, CreditCard,
   Wallet, PieChart, ArrowUpRight, Loader2, ShieldCheck,
   Building2, Calendar, FileText, Gift, Landmark, Printer,
+  Coins, Scale, CheckCircle2
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,11 +32,13 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { useEmployees } from '@/hooks/use-employees'
 import { useTimesheetEntries } from '@/hooks/use-timesheets'
 import { useAttendanceRange } from '@/hooks/use-attendance'
-import { useLeaveRequests } from '@/hooks/use-leaves'
+import { useLeaveRequests, useAllLeaveBalances, useLeaveTypes } from '@/hooks/use-leaves'
 import { usePerformanceReviews } from '@/hooks/use-performance'
 import { usePermissions } from '@/hooks/use-permissions'
 import { toast } from 'sonner'
 import { downloadCSV } from '@/utils/export'
+import { computeLeaveMonetizationLedger } from '@/utils/leave-monetization'
+import { YearEndMonetizationTab } from '../leaves/monetization-tab'
 import {
   calculateSSS,
   calculatePhilHealth,
@@ -184,6 +187,17 @@ function PayslipDialog({
                       <span className="font-medium text-violet-700">{formatPHP(data.performanceIncentive)}</span>
                     </div>
                   )}
+                  {data.leaveConversionBonus !== undefined && data.leaveConversionBonus > 0 && (
+                    <div className="flex justify-between bg-amber-50/80 text-amber-900 border border-amber-200/70 p-1.5 rounded">
+                      <div>
+                        <span className="font-bold block">Leave Cash Conversion (DOLE Art. 95)</span>
+                        <span className="text-[10px] text-amber-700 block">
+                          {data.leaveConversionDays || 0} Unused Days @ ₱{(data.baseHourlyRate * 8).toLocaleString()}/day
+                        </span>
+                      </div>
+                      <span className="font-extrabold text-amber-800 self-center">+{formatPHP(data.leaveConversionBonus)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="bg-gray-50 px-3 py-2 border-t border-gray-200 font-bold flex justify-between">
@@ -326,6 +340,14 @@ export default function PayrollPage() {
   const { data: attendance } = useAttendanceRange(periodStart, periodEnd)
   const { data: leaves, isLoading: leavesLoading } = useLeaveRequests()
   const { data: performance, isLoading: perfLoading } = usePerformanceReviews()
+  const { data: allBalances, isLoading: balLoading } = useAllLeaveBalances()
+  const { data: leaveTypes, isLoading: typesLoading } = useLeaveTypes()
+  const [includeLeaveBonus, setIncludeLeaveBonus] = useState<boolean>(true)
+
+  const leaveMonetization = useMemo(() => {
+    if (!employees || !allBalances || !leaveTypes) return null
+    return computeLeaveMonetizationLedger(employees, allBalances, leaveTypes)
+  }, [employees, allBalances, leaveTypes])
 
   // Calculate Philippine Payroll Rows with full Attendance & Timesheet reconciliation
   const payrollRows: PhilippinePayrollItem[] = useMemo(() => {
@@ -428,7 +450,12 @@ export default function PayrollPage() {
         )
         const performanceIncentive = (empPerf.length > 0 && (empPerf[0].overall_rating ?? 0) >= 4.0) ? (isSemiMonthly ? 500 : 1000) : 0
 
-        const grossEarnings = basicPayEarned + overtimePay + paidLeavePay + deMinimisAllowance + performanceIncentive
+        // DOLE Art. 95 Leave Monetization Cash Bonus
+        const empMonetization = leaveMonetization?.records.find(r => r.employeeId === emp.id)
+        const leaveConversionBonus = (includeLeaveBonus && empMonetization) ? empMonetization.cashBonus : 0
+        const leaveConversionDays = (includeLeaveBonus && empMonetization) ? empMonetization.totalUnusedConvertibleDays : 0
+
+        const grossEarnings = basicPayEarned + overtimePay + paidLeavePay + deMinimisAllowance + performanceIncentive + leaveConversionBonus
 
         // 6. Tardiness Deductions (Hourly Rate / 60 * minutes)
         const tardinessDeduction = Math.round(((baseHourlyRate / 60) * tardinessMinutes) * 100) / 100
@@ -519,6 +546,8 @@ export default function PayrollPage() {
           nightDiffPay,
           holidayPay,
           paidLeavePay,
+          leaveConversionBonus,
+          leaveConversionDays,
           deMinimisAllowance,
           performanceIncentive,
           grossEarnings,
@@ -542,7 +571,7 @@ export default function PayrollPage() {
           entriesCount: Math.max(empEntries.length, empAtt.length),
         }
       })
-  }, [employees, currentEntries, attendance, leaves, performance, periodStart, periodEnd, cutoff, periodLabel])
+  }, [employees, currentEntries, attendance, leaves, performance, periodStart, periodEnd, cutoff, periodLabel, leaveMonetization, includeLeaveBonus])
 
   // Summary Totals
   const totals = useMemo(() => {
@@ -649,6 +678,22 @@ export default function PayrollPage() {
             <Download className="size-3.5" /> Export Bank File
           </Button>
 
+          {can.isHR() && (
+            <Button 
+              variant={includeLeaveBonus ? "default" : "outline"}
+              size="sm" 
+              className={`gap-1.5 h-9 text-xs font-semibold ${includeLeaveBonus ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs" : "border-border text-muted-foreground"}`}
+              onClick={() => {
+                const next = !includeLeaveBonus
+                setIncludeLeaveBonus(next)
+                toast.info(next ? 'Leave Conversion Bonus (DOLE Art. 95) included in payroll' : 'Leave Bonus excluded from cutoff calculation')
+              }}
+            >
+              <Coins className="size-3.5" />
+              <span>{includeLeaveBonus ? 'Leave Bonus Included' : 'Include Leave Bonus'}</span>
+            </Button>
+          )}
+
           {can.managePayroll() && (
             <Button className="gap-1.5 h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white" onClick={handleRunPayroll} disabled={isProcessing}>
               {isProcessing ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle className="size-3.5" />}
@@ -669,73 +714,38 @@ export default function PayrollPage() {
               <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
                 Pending Timesheet Approvals
               </p>
-              <p className="text-xs text-amber-700/70 dark:text-amber-400/70">
-                {payrollRows.filter(r => r.status === 'pending').length} employee(s) have unapproved timesheets for this cutoff.
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                Some timesheets require supervisor approval before payroll disbursement.
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            className="gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shrink-0 h-8 text-xs"
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
             onClick={() => navigate('/app/timesheet')}
           >
-            Review Timesheets
+            Review Timesheets <ChevronRight className="ml-1 size-3" />
           </Button>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}><CardContent className="p-4"><Skeleton className="h-16" /></CardContent></Card>
-          ))
-        ) : [
-          {
-            label: 'Total Gross Earnings',
-            value: formatPHP(totals.gross),
-            icon: DollarSign,
-            color: 'text-primary',
-            bg: 'bg-primary/10',
-            sub: 'Basic + OT + Allowances',
-          },
-          {
-            label: 'Net Take-Home Pay',
-            value: formatPHP(totals.net),
-            icon: Wallet,
-            color: 'text-emerald-600',
-            bg: 'bg-emerald-100 dark:bg-emerald-950/50',
-            sub: 'Total employee disbursement',
-          },
-          {
-            label: 'Govt & Tax Deductions',
-            value: formatPHP(totals.statutoryEE + totals.taxWithheld),
-            icon: ShieldCheck,
-            color: 'text-amber-600',
-            bg: 'bg-amber-100 dark:bg-amber-950/50',
-            sub: 'SSS + PhilHealth + PagIBIG + Tax',
-          },
-          {
-            label: 'Employer Govt Cost',
-            value: formatPHP(totals.statutoryER),
-            icon: Building2,
-            color: 'text-blue-600',
-            bg: 'bg-blue-100 dark:bg-blue-950/50',
-            sub: 'Mandatory ER Contributions',
-          },
-        ].map(s => (
-          <Card key={s.label} className="transition-shadow hover:shadow-md">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">{s.label}</p>
-                  <p className="mt-1 text-xl font-bold">{s.value}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>
-                </div>
-                <div className={`flex size-9 items-center justify-center rounded-xl ${s.bg}`}>
-                  <s.icon className={`size-4 ${s.color}`} />
-                </div>
-              </div>
+      {/* Summary KPI Cards */}
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 lg:gap-5">
+        {[
+          { label: 'Total Gross Disbursed', value: formatPHP(totals.gross), sub: `Includes OT, allowances & bonuses`, icon: DollarSign, color: 'text-violet-600' },
+          { label: 'Total Net Take-Home Pay', value: formatPHP(totals.net), sub: `${totals.paid} of ${totals.total} employees ready`, icon: Wallet, color: 'text-emerald-600' },
+          { label: 'Total Govt Remittances', value: formatPHP(totals.statutoryEE + totals.taxWithheld), sub: `SSS, PhilHealth, HDMF & Tax`, icon: ShieldCheck, color: 'text-blue-600' },
+          { label: 'YTD 13th Month Accrual', value: formatPHP(totals.thirteenthMonthAccrued * 12), sub: `Mandatory PD 851 Year-End Reserve`, icon: Gift, color: 'text-amber-600' },
+        ].map((c) => (
+          <Card key={c.label}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground">{c.label}</CardTitle>
+              <c.icon className={`size-4 ${c.color}`} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{c.value}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{c.sub}</p>
             </CardContent>
           </Card>
         ))}
@@ -760,6 +770,11 @@ export default function PayrollPage() {
           <TabsTrigger value="thirteenth" className="gap-1.5">
             <Gift className="size-3.5" /> 13th Month Pay Ledger
           </TabsTrigger>
+          {can.isHR() && (
+            <TabsTrigger value="leave_monetization" className="gap-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-500/20">
+              <Coins className="size-3.5" /> Leave Conversion Bonus (Art. 95)
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Tab 1: Payroll Masterlist */}
@@ -840,7 +855,12 @@ export default function PayrollPage() {
                               )}
                             </TableCell>
                             <TableCell className="text-right text-sm font-medium">
-                              {formatPHP(r.grossEarnings)}
+                              <div>{formatPHP(r.grossEarnings)}</div>
+                              {r.leaveConversionBonus !== undefined && r.leaveConversionBonus > 0 && (
+                                <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold font-mono">
+                                  +{formatPHP(r.leaveConversionBonus)} SIL
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell className="text-right text-sm text-red-600 hidden sm:table-cell">
                               -{formatPHP(r.sss.employeeShare)}
@@ -1061,6 +1081,13 @@ export default function PayrollPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tab 4: DOLE Art. 95 Leave Monetization Ledger */}
+        {can.isHR() && (
+          <TabsContent value="leave_monetization" className="space-y-4">
+            <YearEndMonetizationTab />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

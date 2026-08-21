@@ -3,7 +3,8 @@ import { motion } from 'framer-motion'
 import { format, addDays } from 'date-fns'
 import {
   Calendar as CalendarIcon, CheckCircle, XCircle, Clock, Plus, Filter, Download,
-  ChevronRight, Loader2, Search, Sparkles, FileImage, AlertCircle, FileUp, ShieldCheck
+  ChevronRight, Loader2, Search, Sparkles, FileImage, AlertCircle, FileUp, ShieldCheck,
+  Coins
 } from 'lucide-react'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { useLeaveRequests, useLeaveTypes, useLeaveBalances, useCreateLeaveRequest, useUpdateLeaveStatus, useRequestCompliance, useUploadComplianceDocument, useCancelLeave } from '@/hooks/use-leaves'
@@ -12,6 +13,8 @@ import { usePermissions } from '@/hooks/use-permissions'
 import { useAuthStore } from '@/stores/auth.store'
 import { supabase } from '@/lib/supabase'
 import { downloadCSV } from '@/utils/export'
+import { isConvertibleLeaveType, calculateDailyWageRate } from '@/utils/leave-monetization'
+import { YearEndMonetizationTab } from './monetization-tab'
 import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -910,9 +913,12 @@ export default function LeavesPage() {
             const percent = ((b.used_days || 0) / (b.allocated_days || 1)) * 100
             const code = b.leave_types?.code || ''
             const doleStatutory = code ? DOLE_STATUTORY_INFO[code] : undefined
+            const dailyWage = calculateDailyWageRate(employee?.salary_info)
+            const isConvertible = isConvertibleLeaveType(code)
+            const estBonus = isConvertible ? remaining * dailyWage : 0
 
             return (
-              <Card key={b.id} className="relative overflow-hidden border-border/60 bg-card hover:shadow-md transition-shadow">
+              <Card key={b.id} className="relative overflow-hidden border-border/60 bg-card hover:shadow-md transition-shadow flex flex-col justify-between">
                 <div className="absolute top-0 right-0 p-3 opacity-10">
                   <div className="size-16 rounded-full" style={{ background: b.leave_types?.color || '#6366F1' }} />
                 </div>
@@ -938,6 +944,18 @@ export default function LeavesPage() {
                     <span>{b.used_days || 0} used</span>
                     <span className="font-medium">{b.allocated_days || 0}d DOLE limit</span>
                   </div>
+
+                  {can.isHR() && isConvertible && (
+                    <div className="mt-2.5 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Coins className="size-3 text-amber-500 shrink-0" />
+                        Est. Cash Bonus:
+                      </span>
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        ₱{estBonus.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )
@@ -958,12 +976,18 @@ export default function LeavesPage() {
             </TabsTrigger>
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
+            {can.isHR() && (
+              <TabsTrigger value="monetization" className="gap-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-500/20">
+                <Coins className="size-3.5" />
+                Year-End Cash Conversion & Reset
+              </TabsTrigger>
+            )}
             <TabsTrigger value="dole_rights" className="gap-1.5 bg-primary/10 text-primary font-semibold hover:bg-primary/20">
               <ShieldCheck className="size-3.5" />
               DOLE Legal Rights & Acts
             </TabsTrigger>
           </TabsList>
-          {activeTab !== 'dole_rights' && (
+          {activeTab !== 'dole_rights' && activeTab !== 'monetization' && (
             <div className="flex items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
@@ -1052,6 +1076,13 @@ export default function LeavesPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Year-End Cash Conversion & Annual Reset Tab */}
+        {can.isHR() && (
+          <TabsContent value="monetization" className="mt-4">
+            <YearEndMonetizationTab />
+          </TabsContent>
+        )}
 
         {['all', 'pending', 'approved', 'rejected'].map(tab => (
           <TabsContent key={tab} value={tab} className="mt-4">
