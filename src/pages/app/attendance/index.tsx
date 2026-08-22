@@ -1382,15 +1382,7 @@ export default function AttendancePage() {
         {/* TAB 3: FIELD PERSONNEL LIVE MAP */}
         {can.manageAttendance() && (
           <TabsContent value="map" className="space-y-4">
-            <Card className="border-border/70 shadow-xs">
-              <CardHeader>
-                <CardTitle className="text-base">Field Personnel Logistics GPS Map</CardTitle>
-                <CardDescription>Spatial distribution of clocked-in logistics drivers, couriers, and dispatchers</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DailyAttendanceMap records={todayAttendance || []} />
-              </CardContent>
-            </Card>
+            <DailyAttendanceMap records={todayAttendance || []} />
           </TabsContent>
         )}
       </Tabs>
