@@ -111,7 +111,7 @@ function EditTimeEntryDialog({
 
   return (
     <Dialog open onOpenChange={open => { if (!open) onClose() }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md w-[95vw] sm:w-full max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Edit Timesheet Entry</DialogTitle>
           <DialogDescription>Adjust clocked hours, break times, and notes.</DialogDescription>

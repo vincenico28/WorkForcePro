@@ -637,74 +637,82 @@ Please analyze and format your report with clear markdown headers:
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Shift & Roster Management</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Shift & Roster Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Plan, optimize, and manage employee schedules in compliance with DOLE Labor Standards
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap items-center">
+        <div className="flex gap-1.5 sm:gap-2 flex-wrap items-center w-full md:w-auto">
           {can.manageSchedule() && (
             <>
               <Button 
                 variant="outline" 
-                className="gap-1.5 shrink-0 bg-rose-50/70 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 shadow-2xs font-semibold" 
+                size="sm"
+                className="gap-1.5 shrink-0 bg-rose-50/70 text-rose-700 border-rose-200 hover:bg-rose-100 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300 shadow-2xs font-semibold text-xs" 
                 onClick={() => setHolidaysGuideOpen(true)}
               >
-                <Flag className="size-4 text-rose-600" /> PH Holidays ({monthHolidays.length})
+                <Flag className="size-3.5 text-rose-600" /> PH Holidays ({monthHolidays.length})
               </Button>
               <Button 
                 variant="default" 
-                className="gap-1.5 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs" 
+                size="sm"
+                className="gap-1.5 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs text-xs" 
                 onClick={() => setAiWizardOpen(true)}
               >
-                <Sparkles className="size-4" /> AI Auto-Scheduler
+                <Sparkles className="size-3.5" /> AI Auto-Scheduler
               </Button>
               <Button 
                 variant="outline" 
-                className="gap-1.5 shrink-0 bg-background hover:bg-muted" 
+                size="sm"
+                className="gap-1.5 shrink-0 bg-background hover:bg-muted text-xs" 
                 onClick={() => setBulkAssignOpen(true)}
               >
-                <Users className="size-4 text-blue-600" /> Bulk Assign
+                <Users className="size-3.5 text-blue-600" /> Bulk Assign
               </Button>
               <Button 
                 variant="outline" 
-                className="gap-1.5 shrink-0 bg-background hover:bg-muted" 
+                size="sm"
+                className="gap-1.5 shrink-0 bg-background hover:bg-muted text-xs" 
                 onClick={handleCopyPreviousWeek}
                 title="Copy last week shift pattern to current week"
               >
-                <Copy className="size-4 text-emerald-600" /> Copy Last Week
+                <Copy className="size-3.5 text-emerald-600" /> Copy Last Week
               </Button>
               <Button 
                 variant="outline" 
-                className="gap-1.5 shrink-0 bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300" 
+                size="sm"
+                className="gap-1.5 shrink-0 bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-300 text-xs" 
                 onClick={handleAnalyzeRoster}
               >
-                <ShieldCheck className="size-4" /> DOLE Health Check
+                <ShieldCheck className="size-3.5" /> DOLE Health Check
               </Button>
               <Button 
                 variant="outline" 
-                className="gap-1.5 shrink-0" 
+                size="sm"
+                className="gap-1.5 shrink-0 text-xs" 
                 onClick={handleExport}
               >
-                <Download className="size-4" /> Export
+                <Download className="size-3.5" /> Export
               </Button>
               <Button 
                 variant="outline" 
-                className="gap-1.5 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10" 
+                size="sm"
+                className="gap-1.5 shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 text-xs" 
                 onClick={() => setClearConfirmOpen(true)}
               >
-                <Trash2 className="size-4" /> Clear
+                <Trash2 className="size-3.5" /> Clear
               </Button>
               <Button 
-                className="gap-1.5 shrink-0" 
+                size="sm"
+                className="gap-1.5 shrink-0 text-xs" 
                 onClick={() => {
                   setAssignForm({ employee_id: '', shift_id: '', date: format(new Date(), 'yyyy-MM-dd'), notes: '' })
                   setAssignOpen(true)
                 }}
               >
-                <Plus className="size-4" /> Assign Single
+                <Plus className="size-3.5" /> Assign Single
               </Button>
             </>
           )}

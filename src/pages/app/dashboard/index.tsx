@@ -42,34 +42,34 @@ function StatCard({
   return (
     <Card className="overflow-hidden glass-card relative group">
       <div className="absolute inset-0 bg-linear-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <CardContent className="p-5 relative z-10">
+      <CardContent className="p-3.5 sm:p-5 relative z-10">
         {loading ? (
           <div className="space-y-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-8 w-16" />
-            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-3.5 w-20 sm:w-24" />
+            <Skeleton className="h-7 w-12 sm:w-16" />
+            <Skeleton className="h-3 w-28 sm:w-32" />
           </div>
         ) : (
-          <div className="flex items-start justify-between">
-            <div className="space-y-1.5">
-              <p className="text-sm text-muted-foreground">{title}</p>
-              <p className="text-3xl font-bold tracking-tight">{value}</p>
-              {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1 min-w-0">
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">{title}</p>
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight">{value}</p>
+              {subtitle && <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{subtitle}</p>}
               {change && (
-                <div className="flex items-center gap-1 text-xs">
+                <div className="flex items-center gap-1 text-[11px] sm:text-xs">
                   {change.startsWith('+') ? (
-                    <TrendingUp className="size-3 text-emerald-500" />
+                    <TrendingUp className="size-3 text-emerald-500 shrink-0" />
                   ) : (
-                    <TrendingDown className="size-3 text-destructive" />
+                    <TrendingDown className="size-3 text-destructive shrink-0" />
                   )}
                   <span className={change.startsWith('+') ? 'text-emerald-600' : 'text-destructive'}>
-                    {change} vs last week
+                    {change}
                   </span>
                 </div>
               )}
             </div>
-            <div className={`flex size-11 items-center justify-center rounded-xl ${color}`}>
-              <Icon className="size-5" />
+            <div className={`flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-xl ${color}`}>
+              <Icon className="size-4 sm:size-5" />
             </div>
           </div>
         )}
@@ -194,7 +194,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* KPI Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[
           {
             title: 'Total Employees', value: empLoading ? '...' : stats.totalActive, icon: Users,

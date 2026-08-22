@@ -889,25 +889,27 @@ export default function LeavesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Leave Management</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Leave Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Manage employee leave requests and track balances
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="gap-1.5 flex-1 sm:flex-initial" onClick={handleExport}>
             <Download className="size-4" />
             Export
           </Button>
-          <RequestLeaveDialog />
+          <div className="flex-1 sm:flex-initial">
+            <RequestLeaveDialog />
+          </div>
         </div>
       </div>
 
       {/* Balances Overview with DOLE Statutory Citations */}
       {balances && balances.length > 0 && (
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 lg:gap-5">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 lg:gap-5">
           {balances.map(b => {
             const remaining = Math.max(0, (b.allocated_days || 0) - (b.used_days || 0))
             const percent = ((b.used_days || 0) / (b.allocated_days || 1)) * 100
@@ -928,30 +930,33 @@ export default function LeavesPage() {
                       <div className="size-2.5 rounded-full shrink-0" style={{ background: b.leave_types?.color || '#6366F1' }} />
                       <span className="truncate">{b.leave_types?.name}</span>
                     </CardTitle>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {remaining}/{b.allocated_days || 0} left
+                    </span>
                   </div>
                   {doleStatutory && (
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 w-fit mt-1 bg-primary/5 text-primary border-primary/20 font-medium truncate">
-                      {doleStatutory.act.split('(')[0].trim()}
-                    </Badge>
+                    <p className="text-[10px] text-primary/80 font-medium line-clamp-1 mt-0.5" title={doleStatutory.act}>
+                      ⚖️ {doleStatutory.act}
+                    </p>
                   )}
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="text-2xl font-extrabold text-foreground mt-1">
-                    {remaining} <span className="text-xs font-normal text-muted-foreground">days left</span>
-                  </div>
-                  <Progress value={percent} className="h-1.5 mt-2.5" />
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1.5">
-                    <span>{b.used_days || 0} used</span>
-                    <span className="font-medium">{b.allocated_days || 0}d DOLE limit</span>
+                <CardContent className="pt-0 pb-3 space-y-2">
+                  <div className="space-y-1">
+                    <Progress value={percent} className="h-1.5" />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>{b.used_days || 0} used</span>
+                      <span>{Math.round(percent)}%</span>
+                    </div>
                   </div>
 
+                  {/* Unused Leave Cash Conversion Preview (Higher-Ups Only) */}
                   {can.isHR() && isConvertible && (
-                    <div className="mt-2.5 pt-2 border-t border-border/50 flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Coins className="size-3 text-amber-500 shrink-0" />
-                        Est. Cash Bonus:
+                    <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between text-[11px] bg-amber-500/5 -mx-4 -mb-3 px-4 py-1.5 rounded-b-lg">
+                      <span className="text-amber-700 dark:text-amber-300 font-medium flex items-center gap-1">
+                        <Coins className="size-3 text-amber-600 shrink-0" />
+                        <span className="text-[10px]">Est. Cash Bonus:</span>
                       </span>
-                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                      <span className="font-mono font-bold text-amber-700 dark:text-amber-300 text-[10px]">
                         ₱{estBonus.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -964,9 +969,9 @@ export default function LeavesPage() {
       )}
 
       {/* Main Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <TabsList className="w-full justify-start flex-wrap h-auto md:w-auto md:flex-nowrap">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 flex-wrap">
+          <TabsList className="max-w-full overflow-x-auto no-scrollbar scrollbar-none justify-start flex-nowrap shrink-0">
             <TabsTrigger value="all">All Requests</TabsTrigger>
             <TabsTrigger value="pending" className="gap-1.5">
               Pending
@@ -988,19 +993,19 @@ export default function LeavesPage() {
             </TabsTrigger>
           </TabsList>
           {activeTab !== 'dole_rights' && activeTab !== 'monetization' && (
-            <div className="flex items-center gap-2">
-              <div className="relative">
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-initial">
                 <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
                 <Input
                   placeholder="Search employee..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-[200px] pl-9"
+                  className="w-full sm:w-[200px] pl-9"
                 />
               </div>
               {can.manageLeaves() && (
                 <Select value={selectedCategory || 'all'} onValueChange={v => setSelectedCategory(v === 'all' ? null : v)}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <Filter className="mr-2 size-4 text-muted-foreground" />
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>

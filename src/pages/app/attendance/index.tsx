@@ -366,11 +366,11 @@ function ClockWidget({ geofenceSettings }: { geofenceSettings: GeofenceState | n
             </div>
           )}
 
-          <div className="mt-6 flex justify-center">
+          <div className="mt-5 flex justify-center">
             {isDone ? (
-              <div className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-2.5">
-                <CheckCircle className="size-5 text-emerald-400" />
-                <span className="text-sm font-medium text-sidebar-foreground">
+              <div className="flex items-center gap-2 rounded-full bg-white/10 px-5 sm:px-6 py-2.5">
+                <CheckCircle className="size-4 sm:size-5 text-emerald-400" />
+                <span className="text-xs sm:text-sm font-medium text-sidebar-foreground">
                   Shift complete · {todayAtt?.total_hours}h
                 </span>
               </div>
@@ -379,7 +379,9 @@ function ClockWidget({ geofenceSettings }: { geofenceSettings: GeofenceState | n
                 size="lg"
                 onClick={handleClockClick}
                 disabled={clockIn.isPending || clockOut.isPending}
-                className={`rounded-full px-8 ${isIn ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}
+                className={`rounded-full w-full max-w-[280px] sm:w-auto h-12 text-sm sm:text-base font-semibold px-8 shadow-md transition-transform active:scale-95 ${
+                  isIn ? 'bg-rose-500 hover:bg-rose-600 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                }`}
               >
                 <Clock className="mr-2 size-5" />
                 {isIn ? 'Clock Out' : 'Clock In'}
@@ -389,18 +391,10 @@ function ClockWidget({ geofenceSettings }: { geofenceSettings: GeofenceState | n
                 size="lg"
                 onClick={requestPermissions}
                 disabled={checkingPermissions}
-                variant="secondary"
-                className="rounded-full px-8 gap-2 bg-sidebar-primary/20 text-sidebar-primary hover:bg-sidebar-primary/30 border border-sidebar-primary/30"
+                className="rounded-full w-full max-w-[280px] sm:w-auto h-12 text-sm sm:text-base font-semibold px-8 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-transform active:scale-95"
               >
-                {checkingPermissions ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <>
-                    <Camera className="size-4" />
-                    <MapPin className="size-4" />
-                  </>
-                )}
-                Grant Access to Clock In
+                {checkingPermissions ? <Loader2 className="mr-2 size-5 animate-spin" /> : <Clock className="mr-2 size-5" />}
+                Allow GPS to Clock In
               </Button>
             )}
           </div>
@@ -1102,7 +1096,7 @@ export default function AttendancePage() {
                   const recHoliday = getHolidayForDate(record.date)
 
                   return (
-                    <div key={record.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors">
+                    <div key={record.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-xl border border-border p-3 hover:bg-muted/30 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar className="size-9 shrink-0 ring-1 ring-border">
                           {record.employees?.avatar_url && <AvatarImage src={record.employees.avatar_url} className="object-cover" />}
@@ -1117,10 +1111,16 @@ export default function AttendancePage() {
                           <p className="text-[11px] text-muted-foreground truncate">
                             {record.employees?.position || 'Staff'} • {record.employees?.departments?.name || 'Operations'}
                           </p>
+                          {/* Mobile inline timestamp */}
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground sm:hidden mt-0.5">
+                            <span>🕒 {record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : '—'}</span>
+                            {record.clock_out ? <span>→ {format(new Date(record.clock_out), 'h:mm a')}</span> : <span className="text-emerald-600 font-semibold">(On Duty)</span>}
+                            {record.total_hours ? <span className="font-semibold">({record.total_hours}h)</span> : null}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 text-xs">
+                      <div className="flex items-center justify-between sm:justify-end gap-2 text-xs pt-1 sm:pt-0 border-t sm:border-t-0 border-border/40">
                         <div className="text-right hidden sm:block">
                           <p className="font-semibold text-foreground">
                             {record.clock_in ? format(new Date(record.clock_in), 'h:mm a') : '—'}
@@ -1141,7 +1141,7 @@ export default function AttendancePage() {
                             }`}
                             title={`${recHoliday.name}: ${recHoliday.payRuleWorked}`}
                           >
-                            🇵🇭 {recHoliday.type === 'regular' ? '200% Holiday Double Pay' : '130% Holiday Pay'}
+                            🇵🇭 {recHoliday.type === 'regular' ? '200% Double Pay' : '130%'}
                           </Badge>
                         )}
 

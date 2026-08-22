@@ -208,7 +208,7 @@ function EmployeeFormModal({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl w-[95vw] sm:w-full max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Edit Employee 201 File' : 'Onboard New Employee'}</DialogTitle>
           <DialogDescription>
@@ -220,15 +220,15 @@ function EmployeeFormModal({
 
         <form onSubmit={onSubmit} className="space-y-4">
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic" className="gap-1 text-xs">
-                <Briefcase className="size-3.5" /> Basic & Job
+            <TabsList className="grid w-full grid-cols-3 text-xs">
+              <TabsTrigger value="basic" className="gap-1 text-xs truncate">
+                <Briefcase className="size-3.5 shrink-0" /> Basic & Job
               </TabsTrigger>
-              <TabsTrigger value="statutory" className="gap-1 text-xs">
-                <DollarSign className="size-3.5" /> Statutory & Salary
+              <TabsTrigger value="statutory" className="gap-1 text-xs truncate">
+                <DollarSign className="size-3.5 shrink-0" /> Statutory & Pay
               </TabsTrigger>
-              <TabsTrigger value="emergency" className="gap-1 text-xs">
-                <HeartHandshake className="size-3.5" /> 201 & Emergency
+              <TabsTrigger value="emergency" className="gap-1 text-xs truncate">
+                <HeartHandshake className="size-3.5 shrink-0" /> Emergency
               </TabsTrigger>
             </TabsList>
 
@@ -884,20 +884,20 @@ export default function EmployeesPage() {
       />
 
       {/* Top Header & Master Actions */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Employee Directory & 201 Management</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Employee Directory & 201 Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Manage workforce contracts, statutory records, biometric enrollments, and organizational hierarchy
           </p>
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button variant="outline" className="gap-1.5" onClick={handleExportCSV}>
+        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
+          <Button variant="outline" size="sm" className="gap-1.5 flex-1 sm:flex-initial" onClick={handleExportCSV}>
             <Download className="size-4" />
             {selectedIds.length > 0 ? `Export (${selectedIds.length})` : 'Export Masterlist'}
           </Button>
           {can.manageEmployees() && (
-            <Button className="gap-1.5" onClick={openAdd}>
+            <Button size="sm" className="gap-1.5 flex-1 sm:flex-initial" onClick={openAdd}>
               <UserPlus className="size-4" />
               Add Employee
             </Button>
@@ -906,7 +906,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* HR Executive KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4">
         {[
           { label: 'Total Workforce', value: summary.total, icon: Users, color: 'text-primary', onClick: () => { setStatusFilter('all'); setFaceFilter('all'); } },
           { label: 'Active on Duty', value: summary.active, icon: UserCheck, color: 'text-emerald-600', onClick: () => { setStatusFilter('active'); setFaceFilter('all'); } },
@@ -925,13 +925,13 @@ export default function EmployeesPage() {
             onClick={s.onClick}
             className={`cursor-pointer transition-all hover:ring-2 hover:ring-primary/40 shadow-xs ${s.bg || ''}`}
           >
-            <CardContent className="flex items-center gap-3.5 p-4">
-              <div className="p-2.5 rounded-xl bg-muted/60">
-                <s.icon className={`size-5 ${s.color}`} />
+            <CardContent className="flex items-center gap-2.5 sm:gap-3.5 p-3 sm:p-4">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-muted/60 shrink-0">
+                <s.icon className={`size-4 sm:size-5 ${s.color}`} />
               </div>
-              <div>
-                <p className="text-2xl font-bold tracking-tight">{isLoading ? '...' : s.value}</p>
-                <p className="text-xs text-muted-foreground font-medium">{s.label}</p>
+              <div className="min-w-0">
+                <p className="text-xl sm:text-2xl font-bold tracking-tight leading-tight">{isLoading ? '...' : s.value}</p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium truncate">{s.label}</p>
               </div>
             </CardContent>
           </Card>

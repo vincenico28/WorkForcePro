@@ -63,35 +63,44 @@ export function AppHeader() {
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border/50 glass z-50 sticky top-0 px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 h-4" />
+    <header className="flex h-13 sm:h-14 shrink-0 items-center justify-between gap-1.5 sm:gap-2 border-b border-border/50 glass z-50 sticky top-0 px-3 sm:px-4">
+      <div className="flex items-center gap-2 min-w-0">
+        <SidebarTrigger className="-ml-1 size-8 sm:size-9" />
+        <Separator orientation="vertical" className="mr-1 h-4 hidden sm:block" />
 
-      <Breadcrumb className="hidden md:flex">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/app/dashboard" className="text-xs">
-              {breadcrumb[0]}
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage className="text-xs font-medium">{breadcrumb[1]}</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+        {/* Mobile Page Title */}
+        <span className="text-sm font-bold md:hidden truncate max-w-[140px] xs:max-w-[180px] sm:max-w-[240px] text-foreground">
+          {breadcrumb[1] || 'WorkforcePro'}
+        </span>
+
+        {/* Desktop Breadcrumbs */}
+        <Breadcrumb className="hidden md:flex">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink href="/app/dashboard" className="text-xs">
+                {breadcrumb[0]}
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="text-xs font-medium">{breadcrumb[1]}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
 
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} />
 
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="ml-auto flex items-center gap-1 sm:gap-1.5">
         {/* Search */}
         <Button
           variant="ghost"
           size="sm"
-          className="gap-2 text-muted-foreground bg-muted/50 hover:bg-muted"
+          className="h-8 sm:h-9 px-2 sm:px-3 gap-1.5 sm:gap-2 text-muted-foreground bg-muted/40 hover:bg-muted"
           onClick={() => setCmdOpen(true)}
+          aria-label="Search"
         >
-          <Search className="size-4" />
+          <Search className="size-3.5 sm:size-4" />
           <span className="hidden text-xs sm:inline-block">Search...</span>
           <kbd className="hidden sm:inline-block pointer-events-none rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
             ⌘K
@@ -104,7 +113,7 @@ export function AppHeader() {
 
         <Sheet>
           <SheetTrigger asChild>
-            <Avatar className="size-8 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
+            <Avatar className="size-7.5 sm:size-8 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all">
               {employee?.avatar_url && <AvatarImage src={employee.avatar_url} className="object-cover" />}
               <AvatarFallback className="bg-primary text-xs text-primary-foreground">
                 {`${employee?.first_name?.[0] ?? ''}${employee?.last_name?.[0] ?? ''}`.toUpperCase() || 'U'}

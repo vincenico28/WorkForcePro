@@ -97,21 +97,21 @@ function PayslipDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-white text-gray-900 sm:rounded-xl max-h-[90vh] overflow-y-auto">
-        <div id="payslip-print-area" className="print-area p-6 bg-white text-gray-900 font-sans">
+      <DialogContent className="max-w-2xl w-[95vw] sm:w-full bg-white text-gray-900 sm:rounded-xl max-h-[90dvh] overflow-y-auto p-3 sm:p-6">
+        <div id="payslip-print-area" className="print-area p-3 sm:p-6 bg-white text-gray-900 font-sans">
           {/* Header */}
           <div className="border-b border-gray-200 pb-4 mb-4">
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
               <div>
-                <h2 className="text-xl font-extrabold text-violet-700 tracking-tight">PRIORITY HANDLING LOGISTICS, INC.</h2>
+                <h2 className="text-lg sm:text-xl font-extrabold text-violet-700 tracking-tight">PRIORITY HANDLING LOGISTICS, INC.</h2>
                 <p className="text-xs text-gray-500">Corporate Logistics Center, Metro Manila, Philippines</p>
                 <p className="text-xs text-gray-500">BIR TIN: 009-842-153-000 | DOLE Reg. No: NCR-QC-2024-08</p>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right">
                 <span className="inline-block bg-violet-100 text-violet-800 text-xs font-bold px-2.5 py-1 rounded">
                   OFFICIAL PAYSLIP
                 </span>
-                <p className="text-xs font-medium text-gray-600 mt-1.5">Pay Period: {data.periodLabel}</p>
+                <p className="text-xs font-medium text-gray-600 mt-1">Pay Period: {data.periodLabel}</p>
               </div>
             </div>
           </div>
@@ -641,24 +641,24 @@ export default function PayrollPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Philippine Payroll System</h1>
-            <Badge variant="outline" className="text-violet-600 border-violet-200 bg-violet-50 text-[11px] font-semibold">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Philippine Payroll System</h1>
+            <Badge variant="outline" className="text-violet-600 border-violet-200 bg-violet-50 text-[10px] sm:text-[11px] font-semibold">
               DOLE & BIR Compliant
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Priority Handling Logistics, Inc. · {periodLabel}
           </p>
         </div>
 
         {/* Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {/* Cutoff Selector */}
           <Select value={cutoff} onValueChange={(val: CutoffPeriod) => setCutoff(val)}>
-            <SelectTrigger className="w-[180px] h-9 text-xs">
+            <SelectTrigger className="w-full sm:w-[170px] h-9 text-xs">
               <Calendar className="mr-1.5 size-3.5 text-muted-foreground" />
               <SelectValue placeholder="Select Cutoff" />
             </SelectTrigger>
@@ -672,7 +672,7 @@ export default function PayrollPage() {
           <Button 
             variant="outline" 
             size="sm" 
-            className="gap-1.5 h-9 text-xs" 
+            className="gap-1.5 h-9 text-xs flex-1 sm:flex-initial" 
             onClick={handleBankExport}
           >
             <Download className="size-3.5" /> Export Bank File
@@ -682,7 +682,7 @@ export default function PayrollPage() {
             <Button 
               variant={includeLeaveBonus ? "default" : "outline"}
               size="sm" 
-              className={`gap-1.5 h-9 text-xs font-semibold ${includeLeaveBonus ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs" : "border-border text-muted-foreground"}`}
+              className={`gap-1.5 h-9 text-xs font-semibold flex-1 sm:flex-initial ${includeLeaveBonus ? "bg-amber-600 hover:bg-amber-700 text-white shadow-xs" : "border-border text-muted-foreground"}`}
               onClick={() => {
                 const next = !includeLeaveBonus
                 setIncludeLeaveBonus(next)
@@ -695,7 +695,7 @@ export default function PayrollPage() {
           )}
 
           {can.managePayroll() && (
-            <Button className="gap-1.5 h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white" onClick={handleRunPayroll} disabled={isProcessing}>
+            <Button className="gap-1.5 h-9 text-xs bg-violet-600 hover:bg-violet-700 text-white w-full sm:w-auto" onClick={handleRunPayroll} disabled={isProcessing}>
               {isProcessing ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle className="size-3.5" />}
               Disburse Payroll
             </Button>
@@ -705,16 +705,16 @@ export default function PayrollPage() {
 
       {/* Pending timesheets notice */}
       {!isLoading && payrollRows.some(r => r.status === 'pending') && (
-        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5 sm:px-4 sm:py-3 dark:border-amber-900/50 dark:bg-amber-950/20">
           <div className="flex items-center gap-3">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
               <Clock className="size-4 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              <p className="text-xs sm:text-sm font-medium text-amber-800 dark:text-amber-200">
                 Pending Timesheet Approvals
               </p>
-              <p className="text-xs text-amber-700 dark:text-amber-300">
+              <p className="text-[11px] sm:text-xs text-amber-700 dark:text-amber-300">
                 Some timesheets require supervisor approval before payroll disbursement.
               </p>
             </div>
@@ -722,7 +722,7 @@ export default function PayrollPage() {
           <Button 
             variant="outline" 
             size="sm" 
-            className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
+            className="border-amber-300 bg-white text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300 text-xs w-full sm:w-auto"
             onClick={() => navigate('/app/timesheet')}
           >
             Review Timesheets <ChevronRight className="ml-1 size-3" />
@@ -731,21 +731,21 @@ export default function PayrollPage() {
       )}
 
       {/* Summary KPI Cards */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 lg:gap-5">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 lg:gap-5">
         {[
           { label: 'Total Gross Disbursed', value: formatPHP(totals.gross), sub: `Includes OT, allowances & bonuses`, icon: DollarSign, color: 'text-violet-600' },
           { label: 'Total Net Take-Home Pay', value: formatPHP(totals.net), sub: `${totals.paid} of ${totals.total} employees ready`, icon: Wallet, color: 'text-emerald-600' },
           { label: 'Total Govt Remittances', value: formatPHP(totals.statutoryEE + totals.taxWithheld), sub: `SSS, PhilHealth, HDMF & Tax`, icon: ShieldCheck, color: 'text-blue-600' },
           { label: 'YTD 13th Month Accrual', value: formatPHP(totals.thirteenthMonthAccrued * 12), sub: `Mandatory PD 851 Year-End Reserve`, icon: Gift, color: 'text-amber-600' },
         ].map((c) => (
-          <Card key={c.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">{c.label}</CardTitle>
-              <c.icon className={`size-4 ${c.color}`} />
+          <Card key={c.label} className="overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-4">
+              <CardTitle className="text-[11px] sm:text-xs font-medium text-muted-foreground truncate max-w-[130px] sm:max-w-none">{c.label}</CardTitle>
+              <c.icon className={`size-3.5 sm:size-4 shrink-0 ${c.color}`} />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{c.value}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{c.sub}</p>
+            <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
+              <div className="text-lg sm:text-2xl font-bold tracking-tight">{c.value}</div>
+              <p className="mt-0.5 text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{c.sub}</p>
             </CardContent>
           </Card>
         ))}

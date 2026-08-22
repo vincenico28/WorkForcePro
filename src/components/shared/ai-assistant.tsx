@@ -238,23 +238,25 @@ export function FloatingAIAssistant() {
       {/* Floating Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`fixed bottom-6 right-6 z-50 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 active:scale-95 ${
+        aria-label="Open AI Assistant"
+        className={`fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 md:z-50 flex size-12 sm:size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 active:scale-95 ${
           isOpen ? 'scale-0 opacity-0 pointer-events-none' : 'scale-100 opacity-100'
         }`}
       >
-        <Sparkles className="size-6" />
+        <Sparkles className="size-5 sm:size-6" />
       </button>
 
       {/* Floating Panel */}
       <div
-        className={`fixed bottom-6 right-6 z-50 w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-background shadow-2xl transition-all duration-300 origin-bottom-right ${
+        className={`fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-32px)] sm:w-full sm:max-w-sm overflow-hidden rounded-2xl border border-border bg-background shadow-2xl transition-all duration-300 origin-bottom-right ${
           isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'
         }`}
-        style={{ height: '600px', maxHeight: 'calc(100vh - 48px)' }}
+        style={{ height: '580px', maxHeight: 'calc(100dvh - 100px)' }}
       >
         <div className="absolute right-3 top-3 z-10">
           <button
             onClick={() => setIsOpen(false)}
+            aria-label="Close AI Assistant"
             className="flex size-8 items-center justify-center rounded-full bg-black/10 hover:bg-black/20 text-foreground"
           >
             <X className="size-4" />
