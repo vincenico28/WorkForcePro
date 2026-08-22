@@ -1,6 +1,6 @@
 # 🏢 Priority Handling Logistics, Inc. — Workforce Management Pro
 
-An enterprise-grade, intelligent, and highly secure human resources and workforce management platform. Engineered for **Priority Handling Logistics, Inc.**, this system integrates **advanced AI biometric verification**, **real-time GPS geofencing & velocity anomaly detection**, **mandatory multi-stage authentication for leadership**, an **embedded Gemini AI HR Assistant**, **Philippine DOLE / BIR Statutory Compliance Suites**, **Multi-Stage Leave Management with Republic Acts Legal Rights Reference**, an **Enterprise HR Performance Appraisal & Review Suite**, an **Automated AI Roster & Shift Scheduler**, and a **Biometric-Integrated Timesheet & Overtime Audit Engine** into a modern, responsive web application.
+An enterprise-grade, intelligent, and highly secure human resources and workforce management platform. Engineered specifically for **Priority Handling Logistics, Inc.**, this platform integrates **deep-learning facial biometric verification**, **real-time GPS geofencing & velocity anomaly detection**, **mandatory multi-stage authentication for leadership**, an **embedded Gemini AI HR Assistant**, **Philippine DOLE / BIR Statutory Compliance Suites**, **Multi-Stage Leave Management with Unused Leave Cash Monetization (DOLE Art. 95)**, an **Enterprise HR Performance Appraisal & Review Suite**, an **Automated AI Roster & Shift Scheduler**, **Real-Time Daily Attendance Clock-In Spatial Mapping**, and an **Ultra-Responsive Mobile Web UI Architecture** into a modern, unified web application.
 
 ---
 
@@ -9,17 +9,17 @@ An enterprise-grade, intelligent, and highly secure human resources and workforc
 Unlike traditional HR software, this system actively monitors, verifies, and analyzes workforce data to prevent fraud, eliminate buddy-punching, and assist management with real-time operations.
 
 ### 1. 👁️ Core Biometric Identity Verification
-- **Deep Learning Face Encodings:** When an employee clocks in, their live webcam feed is processed via a dedicated Python AI Microservice running `dlib` and OpenCV.
-- **Mathematical Matching:** Extracts 128 unique facial landmarks and compares them against the HR-verified biometric encoding stored in the database.
+- **Deep Learning Face Encodings:** Live webcam feeds are processed via a dedicated Python AI Microservice running `dlib` and OpenCV.
+- **Mathematical Matching:** Extracts 128 unique facial landmarks and compares them against the HR-verified biometric encoding stored in PostgreSQL.
 - **Strict Euclidean Tolerance:** Tuned matching algorithm ensures an exceptionally low false-positive rate (<0.01%).
 
 ### 2. 🎭 Interactive Liveness Challenges (Anti-Spoofing)
-- **Dynamic Challenges:** The UI presents randomized interactive prompts (e.g., "Smile widely", "Turn head left", "Blink eyes").
+- **Dynamic Challenges:** The UI presents randomized interactive prompts (e.g., *"Smile widely"*, *"Turn head left"*, *"Blink eyes"*).
 - **Real-Time Frame Analysis:** Analyzes dynamic micro-motions to ensure the subject is an active, live human, completely preventing photo, screen, and pre-recorded video spoofing.
 
 ### 3. 📍 Strict GPS Geofencing & Location Lock
 - **Device Coordinate Extraction:** Geolocation API extracts high-accuracy latitude and longitude during clock-in/out.
-- **Haversine Distance Boundary:** Calculates geodesic distance against designated organizational logistics hub coordinates. Clock-in is strictly blocked if outside the authorized geofence radius.
+- **Haversine Distance Boundary:** Calculates geodesic distance against designated organizational logistics hub coordinates (`14.5995° N, 120.9842° E`). Clock-in is strictly blocked if outside the authorized geofence radius.
 
 ### 4. 🚀 Velocity-Based Impossible Travel Detection
 - **Time-to-Distance Mathematics:** Measures elapsed time and physical distance between consecutive attendance events.
@@ -40,11 +40,22 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 ## 🏗️ Core System Modules
 
 ### 📍 1. Command Center Dashboard
-- **Global Field Map:** Real-time, dark-themed interactive map (Leaflet) displaying live on-the-clock employees as glowing radar pins.
-- **Attendance & Punctuality Leaderboards:** Gamification widget recognizing punctual team members.
 - **Real-Time KPI Cards:** Instant metrics for active workforce count, attendance rate, pending approvals, and department distributions with skeleton loading states.
+- **Attendance & Punctuality Leaderboards:** Gamification widget recognizing punctual and top-performing team members.
+- **Live Distribution Charts:** Interactive Recharts visualizers for 7-day attendance trends, department breakdowns, and leave utilization.
 
-### 🌴 2. Philippine DOLE Statutory Leave Management & Legal Rights Suite
+### 🗺️ 2. Daily Clock-In Spatial Map & Real-Time Logistics Tracking
+- **Live Spatial Distribution:** Real-time interactive map (Leaflet) displaying all clocked-in logistics drivers, couriers, and dispatchers across Metro Manila.
+- **High-Precision Multi-Format GPS:** Parses exact device coordinates, displays $\pm$ accuracy radius, exact timestamps, and direct Google Maps verification links.
+- **Interactive Personnel Manifest Sidebar:**
+  - Search employees by name, department, or position.
+  - Live distance metric from Manila HQ Hub (e.g. `85m` or `4.2km`).
+  - **1-Click Locate:** Smoothly flies the camera (`map.flyTo`) directly to any employee's pin.
+- **Dual Map Layers:** Toggle seamlessly between **Standard Street Map (OpenStreetMap)** and **High-Resolution Satellite Imagery (ESRI World Imagery)**.
+- **Shift Transit Polylines:** Visualizes displacement routes between Clock-In and Clock-Out locations with transit distance calculation.
+- **Quick KPI Filters:** Filter map markers by *All Clocked-In*, *GPS Verified*, *Inside Geofence*, *Field Logistics*, and *Late Arrivals*.
+
+### 🌴 3. Philippine DOLE Statutory Leaves & Year-End Monetization Suite
 - **Full Philippine Statutory Republic Acts Integration:**
   - **Vacation Leave / Service Incentive Leave (Labor Code Art. 95):** 15 days/year (DOLE SIL $\ge$ 5d standard).
   - **Sick Leave:** 15 days/year with medical certificate compliance attachment.
@@ -55,30 +66,33 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
   - **VAWC Leave (RA 9262):** 10 days paid for victims of violence with Barangay/Court certification.
   - **Bereavement Leave:** 5 days paid for mourning immediate family members.
   - **Emergency / Calamity Leave:** 3 days paid for state of calamity zones.
+- **💰 Unused Leave Cash Conversion & Reset Engine (DOLE Art. 95):**
+  - Converts unused Vacation and Service Incentive Leave balances into cash bonuses: $\text{Cash Bonus} = \text{Remaining Days} \times \text{Daily Wage Rate}$.
+  - Itemized Leave Monetization Ledger previewing employee daily rates, days convertible, and estimated cash payouts.
+  - **Role Guarding:** Restricted strictly to Higher-Ups (`super_admin`, `admin`, `hr_manager`).
 - **Interactive "DOLE Legal Rights & Acts" Reference Tab:**
-  - A dedicated in-app guide detailing every statutory act, legal entitlements, statutory days allowed, and required legal proof.
+  - A dedicated in-app legal guide detailing statutory entitlements, allowed days, and required proof for every Philippine labor law.
 - **Multi-Level Approval Hierarchy:**
   - `pending_supervisor` (Team Supervisor) $\rightarrow$ `pending_hr` (HR Manager / Admin) $\rightarrow$ `approved`.
-- **Dynamic Limit Guardrails:**
-  - Real-time balance meter (`Allocated`, `Used`, `Available`, `Projected`) that blocks submissions exceeding statutory quotas.
 - **Half-Day Duration Precision:** Full Day ($8\text{h}$), Half Day AM ($4\text{h}$), Half Day PM ($4\text{h}$) with exact $0.5$-day balance deduction.
 
-### 🇵🇭 3. Philippine DOLE & BIR Statutory Payroll System
+### 🇵🇭 4. Philippine DOLE & BIR Statutory Payroll System
 - **Philippine Statutory Contribution Engine:**
   - **SSS (Republic Act No. 11199):** 14% total rate (9.5% Employer, 4.5% Employee) based on standard monthly salary credits.
   - **PhilHealth (Republic Act No. 11223):** 5% total rate shared equally (2.5% Employee, 2.5% Employer).
   - **Pag-IBIG Fund (Circular 460):** 2% employee contribution with standard ₱200 cap (matched ₱200 employer).
   - **BIR TRAIN Law (Republic Act No. 10963):** Graduated withholding tax brackets with **0% tax exemption for $\le$ ₱20,833.33/month** (₱10,416.67/semi-monthly).
   - **13th Month Pay Accrual (Presidential Decree No. 851):** Real-time monthly cumulative ledger ($1/12$ of total basic salary earned).
+  - **Leave Conversion Integration:** 1-click toggle to include annual leave monetization bonuses in payroll disbursements with itemized payslip breakdown.
 - **Semi-Monthly Cutoff Selector:** Supports 1st Half (1st–15th), 2nd Half (16th–End of Month), and Monthly cycles.
 - **Attendance $\rightarrow$ Timesheet $\rightarrow$ Leave $\rightarrow$ Payroll Pipeline:** Automatic date-range overlap reconciliation guaranteeing zero dropped hours or leave pay.
-- **Official DOLE Payslip & PDF Export:** Itemized earnings, government deductions, employer share summary, and one-click PDF payslip generator.
-- **Philippine Bank CSV Disbursement:** One-click batch export for BDO, BPI, Metrobank, UnionBank payroll disbursement.
+- **Official DOLE Payslip & PDF Export:** Itemized earnings, government deductions, employer share summary, and one-click PDF payslip generator using `html2canvas` + `jspdf`.
+- **Philippine Bank CSV Disbursement:** Batch export for BDO, BPI, Metrobank, and UnionBank payroll files.
 
-### 🎖️ 4. Enterprise HR Performance Appraisal & Review Suite
+### 🎖️ 5. Enterprise HR Performance Appraisal & Review Suite
 - **3-Step HR Performance Appraisal Workflow:**
   1. **Supervisor Evaluation:** Evaluates 5 core competencies on a 5.0 scale (Job Knowledge, Quality, Attendance, Teamwork, Initiative) with strengths, growth areas, and SMART goals.
-  2. **Employee Digital Acknowledgement:** Employees view evaluations in their personal "My Appraisals" portal, provide self-reflection comments, and digitally sign/acknowledge.
+  2. **Employee Digital Acknowledgement:** Employees view evaluations in their personal portal, provide self-reflection comments, and digitally sign.
   3. **HR Final Certification & Merit Bonus Linkage:** Official 201 filing and automated link to Payroll Merit Bonuses for high performers ($\ge 4.0$).
 - **Standard HR Performance Tiers:**
   - ⭐ **Exceeds Expectations ($4.5 - 5.0$):** Fast-track Promotion & Tier 1 Merit Bonus (₱3,000.00).
@@ -88,7 +102,7 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
   - 🔴 **Critical / Unsatisfactory ($< 2.0$):** Escalated to Formal HR PIP.
 - **Official Branded Appraisal Sheet Dialog:** Printable evaluation sheet with competency radar graph and PDF export.
 
-### 📅 5. HR Shift Scheduling & Roster Management Suite
+### 📅 6. HR Shift Scheduling & Roster Management Suite
 - **✨ AI Smart Auto-Scheduler Wizard:**
   - Configurable scopes: *Current Work Week (Mon–Fri)*, *Next Work Week*, or *Full Month*.
   - Target *All Departments* or specific operational units (Logistics, Warehouse, Dispatch).
@@ -99,26 +113,36 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 - **📊 Real-Time Labor & Hours Summary Column:** Displays each employee's total scheduled shifts, cumulative hours, and leave count on the calendar matrix.
 - **🖱️ Click-to-Edit Cell Interactions:** Direct shift switching, quick shift deletion, and empty-cell fast assignment.
 - **🧹 Safe Schedule Clear Tool:** Resets working shifts for a week or month while keeping approved statutory leaves safe.
+- **🇵🇭 Philippine Holidays & DOLE Wage Compliance Guide:** Built-in statutory pay reference for Regular Holidays (200% double pay) and Special Non-Working Days (130% premium).
 - **🛡️ DOLE Labor Standards Health Check:** AI audit evaluating 40–48h workweek compliance (Art. 83) and 24-consecutive-hour rest periods (Art. 91).
 
-### ⏱️ 6. Biometric Timesheet & Overtime Management Suite
-- **🔄 1-Click Biometric Attendance Sync:** Automatically pulls verified clock-in and clock-out timestamps from face-recognition and GPS attendance records (`attendance_records`) into official timesheet entries.
+### ⏱️ 7. Biometric Timesheet & Overtime Management Suite
+- **🔄 1-Click Biometric Attendance Sync:** Automatically pulls verified clock-in and clock-out timestamps from face-recognition and GPS attendance records into official timesheet entries.
 - **⚡ 1-Click "Approve All Pending":** Fast-tracks approval of all unverified entries across the workforce for the payroll cutoff.
 - **🚫 Reject Time Entry with Feedback:** Supervisors can reject inaccurate time logs with custom explanation notes for employee resubmission.
 - **🇵🇭 DOLE Overtime & Work-Hour Segregation:** Clear itemization of **Regular Hours** ($\le 8\text{h}$), **Overtime Hours** ($> 8\text{h}$ with $+25\%$ premium), and Total Paid Hours.
-- **🔍 Multi-Level Department & Status Filter Suite:** Filter by Department, Employee, or Status (*All Logs*, *Pending Approval*, *Approved*, *With Overtime*).
-- **🧠 AI Timesheet & Payroll Readiness Audit:** Audits overtime trends, missing logs, and ensures clean payroll readiness.
-- **📥 Payroll-Ready CSV Export:** Formatted for direct integration with Philippine banking and payroll disbursement systems.
+- **🔍 Multi-Level Department & Status Filters:** Filter by Department, Employee, or Status (*All Logs*, *Pending Approval*, *Approved*, *With Overtime*).
 
-### 🔔 7. Realtime Notification Broadcaster & Sound Engine
+### 🔔 8. Realtime Notification Broadcaster & Sound Engine
 - **Automated Broadcast Triggers:** New announcements automatically generate and dispatch notification alerts to all active employees.
 - **Web Audio Crystal Chime:** Synthesizes a dual-tone audio notification chime upon new notification arrival with zero external asset dependencies.
 - **Live Websocket Subscriptions:** Connected via Supabase Realtime for instant badge counters and bell ring animations.
 
-### 👥 8. Employee Directory & Org Hierarchy
+### 👥 9. Employee Directory & 201 File Management
 - **Interactive Org Chart:** Visual departmental hierarchy showing reporting lines, supervisor chains, and positions.
+- **Desk-Side Biometric Face Enrollment:** Live webcam registration for employee facial recognition encodings.
 - **Digital ID Card Generator:** Instant printable CR80 standard employee badge preview with scannable QR and barcode components.
-- **Comprehensive Profiles:** Detailed emergency contacts, employment history, compensation rates, and document repositories.
+- **Complete 201 Records:** Compensation rates, government statutory IDs (SSS, PhilHealth, Pag-IBIG, TIN), and emergency contacts.
+
+---
+
+## 📱 Mobile Web UI Architecture
+
+- **Native App-Style Mobile Bottom Quick Navigation Bar (`md:hidden`):** 1-tap switching between Dashboard, Attendance Clock-In/Out, Leaves (with pending badge count), Payroll/Schedule, and Sidebar drawer.
+- **Swipeable Horizontal Tab Navigation:** Touch-momentum scrollable segmented controls (`overflow-x-auto no-scrollbar flex-nowrap`) preventing awkward multi-line tab wrapping.
+- **High-Density Mobile Layouts:** 2-column KPI cards, full-width thumb-friendly Clock In/Out buttons, and visible inline attendance timestamps.
+- **Responsive Modals & Dialogs:** All dialogs (DTR Form 48, Payslips, Leave Requests, 201 Forms) scale to `w-[95vw] max-h-[90dvh]` with scrollable viewports.
+- **Ergonomic Floating AI Assistant:** Repositioned to float cleanly above the bottom navigation bar without obstructing screen real estate.
 
 ---
 
@@ -134,21 +158,12 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 
 ---
 
-## 📱 Responsive UI/UX Design System
-
-- **Glassmorphic Aesthetic:** Deep dark mode interface styled with frosted glass cards (`backdrop-blur-xl`), custom HSL color palettes, and brand tokens.
-- **Fluid Micro-Animations:** Built with Framer Motion for responsive feedback, smooth dialog transitions, and interactive metrics.
-- **Mobile-First Optimizations:** Responsive collapsible header search (`⌘K`), wrapped responsive tabs, compact viewports for smartphones/tablets, and skeleton placeholders.
-- **Typography:** Google Fonts `Outfit` (display/headings) and `Inter` (body/data tables).
-
----
-
 ## 🛠️ Technology Stack
 
 | Layer | Technology |
 | :--- | :--- |
 | **Frontend Framework** | React 18 + Vite |
-| **Language** | TypeScript (Strict Type Safety) |
+| **Language** | TypeScript (Strict Type Safety, 0 compile errors) |
 | **Styling & Components** | Tailwind CSS + `shadcn/ui` + Lucide Icons |
 | **Motion & UX** | Framer Motion |
 | **Audio Engine** | Web Audio API (Crystal Chime Synthesis) |
@@ -156,7 +171,8 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 | **Database & Auth** | Supabase (PostgreSQL 15 + RLS + GoTrue Auth + Realtime) |
 | **AI Microservice** | FastAPI (Python 3.10) + OpenCV + `dlib` / `face_recognition` |
 | **AI LLM Integration** | Google Gemini Flash API (`@google/genai`) |
-| **Mapping** | Leaflet + `react-leaflet` + OpenStreetMap |
+| **Mapping & GIS** | Leaflet + `react-leaflet` + OpenStreetMap + ESRI Satellite Tiles |
+| **PDF Generation** | `html2canvas` + `jspdf` |
 | **Deployment** | Vercel (Frontend Edge) + Render (Python Microservice Container) |
 
 ---
@@ -164,11 +180,67 @@ Unlike traditional HR software, this system actively monitors, verifies, and ana
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18+ or v20+)
-- npm or pnpm
-- Supabase Account / Project
+- **Node.js** (v18+ or v20+)
+- **npm** or **pnpm**
+- **Python 3.10+** (for the AI Facial Biometrics microservice)
+- **Supabase Account / Project**
 
+### 1. Clone the Repository
+```bash
+git clone https://github.com/vincenico28/WorkForcePro.git
+cd WorkForcePro
+```
 
+### 2. Environment Configuration
+Create a `.env` file in the project root:
+```env
+# Supabase Configuration
+VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+# Google Gemini AI Assistant
+VITE_GEMINI_API_KEY=your-gemini-api-key
+
+# Python Facial Biometrics Microservice
+VITE_API_BASE_URL=http://localhost:8000
+
+# Headquarters Geofence Coordinates (Manila HQ)
+VITE_OFFICE_LAT=14.5995
+VITE_OFFICE_LNG=120.9842
+VITE_ALLOWED_RADIUS_METERS=150
+```
+
+### 3. Install Frontend Dependencies & Start Dev Server
+```bash
+npm install
+npm run dev
+```
+The application will start at `http://localhost:5173`.
+
+### 4. (Optional) Run the AI Facial Biometrics Microservice
+Navigate to the Python backend directory and start the FastAPI server:
+```bash
+cd backend # or python microservice folder
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+### 5. Type Checking & Production Build
+```bash
+# Verify TypeScript strict type-safety
+npm run typecheck
+
+# Build optimized production bundle
+npm run build
+```
+
+---
 
 ## 📄 License
 Designed and developed for **Priority Handling Logistics, Inc.** All rights reserved.
